@@ -1,0 +1,17 @@
+{
+  "name": "@cornerman/config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "共享工程配置：eslint / tsconfig / tailwind 预设",
+  "files": ["eslint", "tsconfig", "tailwind"],
+  "exports": {
+    "./eslint": "./eslint/index.cjs",
+    "./tsconfig/base": "./tsconfig/base.json",
+    "./tailwind/preset": "./tailwind/preset.ts"
+  },
+  "peerDependencies": {
+    "eslint": "^9.0.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.5.0"
+  }
+}

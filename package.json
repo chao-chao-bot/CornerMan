@@ -1,0 +1,23 @@
+{
+  "name": "@cornerman/root",
+  "version": "0.0.0",
+  "private": true,
+  "description": "CornerMan 拳角 · 拳击训练后的 AI 复盘平台",
+  "packageManager": "pnpm@9.7.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "turbo": "^2.0.9",
+    "typescript": "^5.5.4"
+  }
+}

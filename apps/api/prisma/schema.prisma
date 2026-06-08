@@ -1,0 +1,132 @@
+// CornerMan · Prisma schema（占位草稿）
+// 对齐 docs/tech-design.md 第 10 节数据模型与 @cornerman/shared-types。
+// 字段为最小草稿，后续随业务收敛；通用软删除字段 deletedAt 贯穿主表。
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  displayName  String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  sessions       TrainingSession[]
+  problemThreads ProblemThread[]
+}
+
+model TrainingSession {
+  id           String   @id @default(cuid())
+  userId       String
+  title        String
+  trainingType String // private_lesson | self_training | sparring
+  trainedAt    DateTime
+  userNote     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  user    User           @relation(fields: [userId], references: [id])
+  videos  Video[]
+  reports AnalysisReport[]
+  scores  Score[]
+}
+
+model Video {
+  id              String   @id @default(cuid())
+  sessionId       String
+  status          String // uploading | uploaded | processing | ready | failed
+  objectKey       String
+  durationMs      Int?
+  width           Int?
+  height          Int?
+  posterObjectKey String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  session  TrainingSession @relation(fields: [sessionId], references: [id])
+  segments VideoSegment[]
+}
+
+model VideoSegment {
+  id           String   @id @default(cuid())
+  videoId      String
+  startMs      Int
+  endMs        Int
+  tags         String[]
+  problemCodes String[]
+  userNote     String?
+  aiConfidence Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  video Video @relation(fields: [videoId], references: [id])
+}
+
+model AnalysisReport {
+  id           String   @id @default(cuid())
+  sessionId    String
+  status       String // draft | final
+  summary      String
+  items        Json
+  modelVersion String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  session   TrainingSession  @relation(fields: [sessionId], references: [id])
+  revisions ReportRevision[]
+}
+
+model ReportRevision {
+  id         String   @id @default(cuid())
+  reportId   String
+  itemKey    String
+  action     String // accept | edit | delete | add
+  aiOriginal String?
+  userResult String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  report AnalysisReport @relation(fields: [reportId], references: [id])
+}
+
+model ProblemThread {
+  id              String   @id @default(cuid())
+  userId          String
+  problemCode     String
+  title           String
+  status          String // open | improving | improved | recurred
+  occurrences     Int      @default(1)
+  lastSeenAt      DateTime
+  improvedEvidence String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Score {
+  id         String   @id @default(cuid())
+  sessionId  String
+  dimension  String // stance | guard | footwork | punch_technique | defense | combination | overall
+  aiScore    Float?
+  userScore  Float?
+  confidence Float?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  session TrainingSession @relation(fields: [sessionId], references: [id])
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "baseUrl": ".",
+    "paths": {
+      "@cornerman/shared-types": ["packages/shared-types/src/index.ts"],
+      "@cornerman/api-client": ["packages/api-client/src/index.ts"],
+      "@cornerman/ui": ["packages/ui/src/index.ts"],
+      "@cornerman/ai-prompts": ["packages/ai-prompts/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".next"]
+}

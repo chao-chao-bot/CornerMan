@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "preserve",
+    "plugins": [{ "name": "next" }],
+    "paths": {
+      "@/*": ["./app/*"],
+      "@cornerman/shared-types": ["../../packages/shared-types/src/index.ts"],
+      "@cornerman/api-client": ["../../packages/api-client/src/index.ts"],
+      "@cornerman/ui": ["../../packages/ui/src/index.ts"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}

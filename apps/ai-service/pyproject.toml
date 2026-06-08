@@ -1,0 +1,13 @@
+[project]
+name = "cornerman-ai-service"
+version = "0.0.0"
+description = "CornerMan 姿态分析服务（FastAPI）"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi==0.111.1",
+    "uvicorn[standard]==0.30.3",
+    "pydantic==2.8.2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,43 @@
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 构建产物
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 日志
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# 编辑器 / 系统
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# turbo
+.turbo/
+
+# 测试
+coverage/
+
+# 临时
+tmp/
+*.tmp
