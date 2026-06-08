@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CornerMan · 趋势看板 /trends</title>
+<link rel="stylesheet" href="coach-lab.css" />
+</head>
+<body>
+
+<div class="view-hint">COACH LAB · 趋势看板页 <code>/trends</code> — <a href="index.html">返回预览导航</a></div>
+
+<header class="topbar">
+  <div class="brand"><span class="mark">C</span>CornerMan <small>COACH LAB</small></div>
+  <div class="spacer"></div>
+  <div class="seg-control">
+    <button class="active">周</button>
+    <button>月</button>
+  </div>
+</header>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="nav-section">
+      <div class="nav-label">训练</div>
+      <a class="nav-item" href="report.html">本次报告</a>
+      <a class="nav-item" href="sessions.html">训练列表</a>
+      <a class="nav-item" href="#">片段库</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">成长</div>
+      <a class="nav-item active" href="trends.html">趋势看板</a>
+      <a class="nav-item" href="problems.html">问题追踪</a>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">趋势看板</h1>
+        <div class="page-sub">最近 8 周 · 训练量与技术评分变化</div>
+      </div>
+    </div>
+
+    <div class="stat-strip" style="margin-bottom:18px;">
+      <div class="stat-box"><div class="v blue">+0.6</div><div class="l">综合分较 4 周前</div></div>
+      <div class="stat-box"><div class="v">3.2 次</div><div class="l">周均训练</div></div>
+      <div class="stat-box"><div class="v green">1</div><div class="l">已改进问题</div></div>
+      <div class="stat-box"><div class="v">2</div><div class="l">仍存在问题</div></div>
+    </div>
+
+    <div class="grid-2" style="align-items:start;">
+
+      <!-- 训练量柱状 -->
+      <div class="module">
+        <div class="module-head"><div class="h">每周训练次数</div><div class="meta">近 8 周</div></div>
+        <div class="module-body">
+          <div class="barchart">
+            <div class="col"><div class="bar-fill" style="height:33%"></div><div class="x">W1</div></div>
+            <div class="col"><div class="bar-fill" style="height:50%"></div><div class="x">W2</div></div>
+            <div class="col"><div class="bar-fill" style="height:33%"></div><div class="x">W3</div></div>
+            <div class="col"><div class="bar-fill" style="height:66%"></div><div class="x">W4</div></div>
+            <div class="col"><div class="bar-fill" style="height:50%"></div><div class="x">W5</div></div>
+            <div class="col"><div class="bar-fill" style="height:83%"></div><div class="x">W6</div></div>
+            <div class="col"><div class="bar-fill" style="height:66%"></div><div class="x">W7</div></div>
+            <div class="col"><div class="bar-fill" style="height:100%"></div><div class="x">W8</div></div>
+          </div>
+          <div class="linechart-cap">纵轴：训练次数（0–4 次）· 横轴：周</div>
+        </div>
+      </div>
+
+      <!-- 综合评分折线 -->
+      <div class="module">
+        <div class="module-head"><div class="h">综合评分趋势</div><div class="meta">我的修订分</div></div>
+        <div class="module-body">
+          <svg width="100%" height="188" viewBox="0 0 420 188" preserveAspectRatio="none">
+            <g stroke="#e2e6eb" stroke-width="1">
+              <line x1="0" y1="40" x2="420" y2="40" />
+              <line x1="0" y1="90" x2="420" y2="90" />
+              <line x1="0" y1="140" x2="420" y2="140" />
+            </g>
+            <!-- AI 原始分（虚线灰） -->
+            <polyline fill="none" stroke="#8a93a0" stroke-width="1.5" stroke-dasharray="4 3"
+              points="10,120 68,115 126,118 184,100 242,104 300,92 358,88 410,80" />
+            <!-- 用户修订分（实线钢蓝） -->
+            <polyline fill="none" stroke="#1e5aa8" stroke-width="2.5"
+              points="10,128 68,122 126,124 184,108 242,110 300,98 358,96 410,86" />
+            <g fill="#1e5aa8">
+              <circle cx="10" cy="128" r="3" /><circle cx="68" cy="122" r="3" /><circle cx="126" cy="124" r="3" /><circle cx="184" cy="108" r="3" />
+              <circle cx="242" cy="110" r="3" /><circle cx="300" cy="98" r="3" /><circle cx="358" cy="96" r="3" /><circle cx="410" cy="86" r="3" />
+            </g>
+          </svg>
+          <div class="legend-inline" style="margin-top:10px; margin-bottom:0;">
+            <span><i class="li-ai"></i>AI 原始分</span>
+            <span><i class="li-user"></i>我的修订分</span>
+          </div>
+          <div class="linechart-cap">纵轴：综合分（0–10）· 横轴：W1–W8</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 维分项趋势 -->
+    <div class="module">
+      <div class="module-head"><div class="h">5 维评分变化</div><div class="meta">较 4 周前</div></div>
+      <div class="module-body">
+        <div class="score-row">
+          <div class="top"><div class="name">出拳质量</div><div class="val">7.5 <span class="ai" style="color:var(--green)">▲ 0.5</span></div></div>
+          <div class="bar"><div class="user-fill" style="width:75%"></div></div>
+        </div>
+        <div class="score-row">
+          <div class="top"><div class="name">基础姿态</div><div class="val">7.0 <span class="ai" style="color:var(--green)">▲ 0.3</span></div></div>
+          <div class="bar"><div class="user-fill" style="width:70%"></div></div>
+        </div>
+        <div class="score-row">
+          <div class="top"><div class="name">脚步移动</div><div class="val">5.5 <span class="ai muted">— 0.0</span></div></div>
+          <div class="bar"><div class="user-fill" style="width:55%"></div></div>
+        </div>
+        <div class="score-row">
+          <div class="top"><div class="name">防守习惯</div><div class="val">5.0 <span class="ai" style="color:var(--red)">▼ 0.2</span></div></div>
+          <div class="bar"><div class="user-fill" style="width:50%"></div></div>
+        </div>
+        <div class="score-row">
+          <div class="top"><div class="name">节奏体能</div><div class="val">6.0 <span class="ai" style="color:var(--green)">▲ 0.4</span></div></div>
+          <div class="bar"><div class="user-fill" style="width:60%"></div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+</body>
+</html>

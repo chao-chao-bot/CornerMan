@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CornerMan · 新建训练 /sessions/new</title>
+<link rel="stylesheet" href="coach-lab.css" />
+<style>
+  .dropzone {
+    border: 2px dashed var(--line-strong); border-radius: var(--radius);
+    background: var(--surface-2); padding: 36px 20px; text-align: center; cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  .dropzone:hover { border-color: var(--blue); }
+  .dropzone .ic { width: 44px; height: 44px; border-radius: 50%; background: var(--blue-soft); color: var(--blue); display: inline-flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 10px; }
+  .dropzone .t { font-size: 14px; font-weight: 600; }
+  .dropzone .d { font-size: 12.5px; color: var(--ink-3); margin-top: 4px; }
+  .upload-item { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); margin-top: 10px; }
+  .upload-thumb { width: 64px; height: 40px; border-radius: 5px; background: radial-gradient(circle at 50% 40%, #2c3440, #161b22); flex-shrink: 0; }
+  .upload-item .meta { flex: 1; min-width: 0; }
+  .upload-item .name { font-size: 13px; font-weight: 500; }
+  .progress { height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin-top: 6px; border: 1px solid var(--line); }
+  .progress .fill { height: 100%; background: var(--blue); border-radius: 999px; }
+</style>
+</head>
+<body>
+
+<div class="view-hint">COACH LAB · 新建训练 + 上传页 <code>/sessions/new</code> — <a href="index.html">返回预览导航</a></div>
+
+<header class="topbar">
+  <div class="brand"><span class="mark">C</span>CornerMan <small>COACH LAB</small></div>
+  <div class="spacer"></div>
+  <button class="btn">取消</button>
+  <button class="btn btn-primary">保存并开始分析</button>
+</header>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="nav-section">
+      <div class="nav-label">训练</div>
+      <a class="nav-item" href="report.html">本次报告</a>
+      <a class="nav-item" href="sessions.html">训练列表</a>
+      <a class="nav-item" href="#">片段库</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">成长</div>
+      <a class="nav-item" href="trends.html">趋势看板</a>
+      <a class="nav-item" href="problems.html">问题追踪</a>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">新建训练</h1>
+        <div class="page-sub">先填基础信息再上传视频，保存后 AI 自动开始分析</div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="align-items:start;">
+
+      <!-- 左：训练信息 -->
+      <div class="module">
+        <div class="module-head"><div class="h">训练信息</div><div class="meta">约 1 分钟</div></div>
+        <div class="module-body">
+          <div class="field">
+            <label>训练类型</label>
+            <div class="seg-control">
+              <button class="active">私教课</button>
+              <button>自训</button>
+              <button>实战约练</button>
+            </div>
+          </div>
+          <div class="grid-2" style="gap:12px;">
+            <div class="field">
+              <label>日期</label>
+              <input class="input" type="text" value="2026-06-08" />
+            </div>
+            <div class="field">
+              <label>时长（分钟）</label>
+              <input class="input" type="text" value="48" />
+            </div>
+          </div>
+          <div class="field">
+            <label>地点</label>
+            <input class="input" type="text" value="中拳道拳馆" />
+          </div>
+          <div class="field">
+            <label>本次重点</label>
+            <input class="input" type="text" value="jab 后快速回防 + 后撤步收脚" />
+          </div>
+          <div class="field mb-0">
+            <label>主观感受</label>
+            <textarea class="textarea" placeholder="今天状态、身体感觉、想专门练的点……">膝盖偏紧，第三回合开始动作变形。</textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右：上传视频 -->
+      <div class="module">
+        <div class="module-head"><div class="h">训练视频</div><div class="meta">支持多个 · 分片续传</div></div>
+        <div class="module-body">
+          <div class="dropzone">
+            <div class="ic">+</div>
+            <div class="t">拖拽视频到这里，或点击选择</div>
+            <div class="d">PC 可批量上传；手机可直接拍摄或从相册选择</div>
+          </div>
+
+          <div class="upload-item">
+            <div class="upload-thumb"></div>
+            <div class="meta">
+              <div class="name">round_1_3.mp4 · 156 MB</div>
+              <div class="progress"><div class="fill" style="width:100%"></div></div>
+            </div>
+            <span class="badge improved">已完成</span>
+          </div>
+
+          <div class="upload-item">
+            <div class="upload-thumb"></div>
+            <div class="meta">
+              <div class="name">round_4_6.mp4 · 142 MB</div>
+              <div class="progress"><div class="fill" style="width:64%"></div></div>
+            </div>
+            <span class="badge blue">上传中 64%</span>
+          </div>
+
+          <div class="hint" style="margin-top:12px; color:var(--ink-3); font-size:12px;">
+            视频为私有存储，仅你可见。保存后将自动转码、切分片段并生成 AI 复盘草稿。
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+</body>
+</html>

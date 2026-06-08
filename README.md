@@ -14,7 +14,7 @@
 
 - Monorepo：`pnpm workspaces` + `Turborepo`
 - 后端：`NestJS`（Node）+ `FastAPI`（Python AI 子服务）
-- 前端：`Next.js 14` App Router，移动端 H5 优先
+- 前端：`Next.js 14` App Router，PC 优先 + 响应式兼容移动端 H5
 - 数据：PostgreSQL + Redis + 阿里云 OSS
 - 部署区域：中国大陆（阿里云）
 

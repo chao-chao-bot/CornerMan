@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CornerMan · 问题追踪 /problems</title>
+<link rel="stylesheet" href="coach-lab.css" />
+</head>
+<body>
+
+<div class="view-hint">COACH LAB · 问题追踪页 <code>/problems</code> — <a href="index.html">返回预览导航</a></div>
+
+<header class="topbar">
+  <div class="brand"><span class="mark">C</span>CornerMan <small>COACH LAB</small></div>
+  <div class="spacer"></div>
+  <div class="seg-control">
+    <button class="active">全部</button>
+    <button>仍存在</button>
+    <button>已改进</button>
+    <button>新增</button>
+  </div>
+</header>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="nav-section">
+      <div class="nav-label">训练</div>
+      <a class="nav-item" href="report.html">本次报告</a>
+      <a class="nav-item" href="sessions.html">训练列表</a>
+      <a class="nav-item" href="#">片段库</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">成长</div>
+      <a class="nav-item" href="trends.html">趋势看板</a>
+      <a class="nav-item active" href="problems.html">问题追踪</a>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">问题追踪</h1>
+        <div class="page-sub">同类问题跨训练串联，验证你的训练是否真的有效</div>
+      </div>
+    </div>
+
+    <div class="stat-strip" style="margin-bottom:18px;">
+      <div class="stat-box"><div class="v" style="color:var(--red)">2</div><div class="l">仍存在</div></div>
+      <div class="stat-box"><div class="v green">3</div><div class="l">已改进</div></div>
+      <div class="stat-box"><div class="v" style="color:var(--orange)">1</div><div class="l">本次新增</div></div>
+      <div class="stat-box"><div class="v">6</div><div class="l">累计追踪</div></div>
+    </div>
+
+    <div class="module">
+      <div class="module-head"><div class="h">仍存在的问题</div><div class="meta">优先处理</div></div>
+      <div class="module-body">
+        <div class="problem mb-0" style="margin-bottom:10px;">
+          <div class="problem-top">
+            <span class="status-dot sd-still"></span>
+            <div class="p-body"><div class="p-title">出拳后回防慢</div><div class="p-meta">首次出现于 #38，已连续 4 次训练存在 · 防守维度主要拖累项</div></div>
+            <span class="badge still">仍存在</span>
+          </div>
+          <div class="thread">
+            <span class="node hit">38</span><span class="link"></span>
+            <span class="node hit">40</span><span class="link"></span>
+            <span class="node hit">41</span><span class="link"></span>
+            <span class="node hit">42</span>
+            <span class="lbl" style="margin-left:8px">4 / 4 次命中</span>
+          </div>
+        </div>
+        <div class="problem mb-0">
+          <div class="problem-top">
+            <span class="status-dot sd-still"></span>
+            <div class="p-body"><div class="p-title">脚步停滞（出拳时定脚）</div><div class="p-meta">首次出现于 #36，间歇出现 · 影响脚步与节奏</div></div>
+            <span class="badge still">仍存在</span>
+          </div>
+          <div class="thread">
+            <span class="node hit">36</span><span class="link"></span>
+            <span class="node ok">38</span><span class="link"></span>
+            <span class="node hit">40</span><span class="link"></span>
+            <span class="node hit">42</span>
+            <span class="lbl" style="margin-left:8px">3 / 4 次命中</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-head"><div class="h">本次新增</div><div class="meta">#42</div></div>
+      <div class="module-body">
+        <div class="problem mb-0">
+          <div class="problem-top">
+            <span class="status-dot sd-new"></span>
+            <div class="p-body"><div class="p-title">后撤步重心偏前</div><div class="p-meta">本次首次记录 · 建议下次训练专项关注</div></div>
+            <span class="badge new">新增</span>
+          </div>
+          <div class="thread">
+            <span class="node hit">42</span>
+            <span class="lbl" style="margin-left:8px">首次记录</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-head"><div class="h">已改进</div><div class="meta">保持住</div></div>
+      <div class="module-body">
+        <div class="problem mb-0" style="margin-bottom:10px;">
+          <div class="problem-top">
+            <span class="status-dot sd-improved"></span>
+            <div class="p-body"><div class="p-title">jab 收拳无力</div><div class="p-meta">连续 3 次未再出现，已稳定</div></div>
+            <span class="badge improved">已改进</span>
+          </div>
+          <div class="thread">
+            <span class="node hit">37</span><span class="link"></span>
+            <span class="node hit">39</span><span class="link"></span>
+            <span class="node ok">40</span><span class="link"></span>
+            <span class="node ok">42</span>
+            <span class="lbl" style="margin-left:8px">已稳定</span>
+          </div>
+        </div>
+        <div class="problem mb-0">
+          <div class="problem-top">
+            <span class="status-dot sd-improved"></span>
+            <div class="p-body"><div class="p-title">下巴抬高（防守暴露）</div><div class="p-meta">连续 2 次未出现</div></div>
+            <span class="badge improved">已改进</span>
+          </div>
+          <div class="thread">
+            <span class="node hit">35</span><span class="link"></span>
+            <span class="node hit">38</span><span class="link"></span>
+            <span class="node ok">40</span><span class="link"></span>
+            <span class="node ok">42</span>
+            <span class="lbl" style="margin-left:8px">已稳定</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+</body>
+</html>

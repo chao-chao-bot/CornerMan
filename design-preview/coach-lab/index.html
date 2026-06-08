@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CornerMan · Coach Lab 设计预览</title>
+<link rel="stylesheet" href="coach-lab.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><span class="mark">C</span>CornerMan <small>COACH LAB · 设计预览</small></div>
+  <div class="spacer"></div>
+  <span class="muted" style="font-size:12.5px;">方案 C · 浅灰 + 钢蓝 + 模块化</span>
+</header>
+
+<div class="hub">
+  <h1>CornerMan · Coach Lab 静态页面集</h1>
+  <p class="lead">
+    MVP 全流程静态预览，全部基于共享设计系统 <code>coach-lab.css</code>。
+    用于开发对照：每个页面对应一条产品路由。缩小浏览器窗口可查看移动端 H5 形态。
+  </p>
+
+  <div class="hub-grid">
+    <a class="hub-card" href="login.html">
+      <div class="t">登录 / 注册</div>
+      <div class="d">注册即登录，无短信验证</div>
+      <div class="route">/login</div>
+    </a>
+    <a class="hub-card" href="sessions.html">
+      <div class="t">训练列表</div>
+      <div class="d">全部训练、筛选、累计统计</div>
+      <div class="route">/sessions</div>
+    </a>
+    <a class="hub-card" href="session-new.html">
+      <div class="t">新建训练 + 上传</div>
+      <div class="d">训练信息录入 + 视频上传</div>
+      <div class="route">/sessions/new</div>
+    </a>
+    <a class="hub-card" href="report.html">
+      <div class="t">训练报告（核心）</div>
+      <div class="d">视频 + AI 起草修订 + 评分 + 问题</div>
+      <div class="route">/sessions/[id]</div>
+    </a>
+    <a class="hub-card" href="trends.html">
+      <div class="t">趋势看板</div>
+      <div class="d">训练量、评分趋势、5 维变化</div>
+      <div class="route">/trends</div>
+    </a>
+    <a class="hub-card" href="problems.html">
+      <div class="t">问题追踪</div>
+      <div class="d">同类问题跨训练串联</div>
+      <div class="route">/problems</div>
+    </a>
+  </div>
+
+  <p class="lead" style="margin-top:28px;">
+    设计规范详见 <a href="../../docs/report-page-style-options.md">docs/report-page-style-options.md</a>。
+  </p>
+</div>
+
+</body>
+</html>

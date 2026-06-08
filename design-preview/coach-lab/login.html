@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CornerMan · 登录 / 注册 /login</title>
+<link rel="stylesheet" href="coach-lab.css" />
+</head>
+<body>
+
+<div class="view-hint">COACH LAB · 登录 / 注册页 <code>/login</code>（MVP：注册即登录，无短信） — <a href="index.html">返回预览导航</a></div>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span class="mark">C</span>
+      <span class="name">CornerMan</span>
+    </div>
+    <div class="auth-sub">拳击训练后的 AI 复盘教练</div>
+
+    <div class="auth-tabs">
+      <button class="active">注册</button>
+      <button>登录</button>
+    </div>
+
+    <div class="field">
+      <label>邮箱 / 用户名</label>
+      <input class="input" type="text" placeholder="you@example.com" value="boxer.li@example.com" />
+    </div>
+    <div class="field">
+      <label>密码</label>
+      <input class="input" type="password" placeholder="至少 8 位" value="········" />
+      <div class="hint">注册成功后将直接进入，无需短信验证。</div>
+    </div>
+    <div class="field">
+      <label>昵称（拳手名）</label>
+      <input class="input" type="text" placeholder="例如：Iron Li" value="Iron Li" />
+    </div>
+
+    <button class="btn btn-primary btn-lg btn-block" style="margin-top:6px;">注册并进入</button>
+
+    <div style="text-align:center; margin-top:16px; font-size:12.5px; color:var(--ink-3);">
+      已有账号？<a href="#">直接登录</a>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
