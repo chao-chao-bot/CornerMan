@@ -38,6 +38,37 @@ export interface AuthTokens {
   expiresIn: number;
 }
 
+/** 对外可见的用户视图（剔除 passwordHash 等敏感字段） */
+export interface PublicUser {
+  id: ID;
+  email: string;
+  username: string;
+  displayName?: string;
+  createdAt: ISODateString;
+}
+
+export interface RegisterInput {
+  email: string;
+  username: string;
+  password: string;
+  displayName?: string;
+}
+
+export interface LoginInput {
+  /** 邮箱或用户名 */
+  identifier: string;
+  password: string;
+}
+
+export interface RefreshInput {
+  refreshToken: string;
+}
+
+export interface AuthResponse {
+  user: PublicUser;
+  tokens: AuthTokens;
+}
+
 // ---------------------------------------------------------------------------
 // 训练与视频
 // ---------------------------------------------------------------------------
@@ -52,6 +83,25 @@ export interface TrainingSession extends BaseEntity {
   /** 训练者自填感受 / 备注 */
   userNote?: string;
   videoIds: ID[];
+}
+
+/** 创建训练的入参 */
+export interface CreateTrainingSessionInput {
+  title: string;
+  trainingType: TrainingType;
+  trainedAt: ISODateString;
+  userNote?: string;
+}
+
+/** 训练记录对外视图（列表/详情返回） */
+export interface TrainingSessionDTO {
+  id: ID;
+  title: string;
+  trainingType: TrainingType;
+  trainedAt: ISODateString;
+  userNote?: string;
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
 }
 
 export type VideoStatus =

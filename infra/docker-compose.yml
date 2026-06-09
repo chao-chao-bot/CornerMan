@@ -13,7 +13,8 @@ services:
       POSTGRES_PASSWORD: cornerman
       POSTGRES_DB: cornerman
     ports:
-      - "5432:5432"
+      # 宿主机用 5433 避免与本机已存在的 postgres(5432) 冲突；容器内仍是 5432
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 

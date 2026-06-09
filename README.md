@@ -9,6 +9,7 @@
 - [产品调研](docs/product-research.md)：市场判断、竞品矩阵、机会与风险
 - [产品需求文档（MVP）](docs/prd.md)：目标用户、功能范围、评分体系、里程碑
 - [技术设计文档（MVP）](docs/tech-design.md)：monorepo 架构、技术选型、AI 流水线、部署方案
+- [执行路线图](docs/roadmap.md)：P0-P5 分阶段交付、退出标准、当前进度跟踪
 
 ## 工程总览
 
