@@ -6,11 +6,15 @@
  */
 import type {
   AuthResponse,
+  CompleteVideoUploadInput,
   CreateTrainingSessionInput,
+  InitVideoUploadInput,
+  InitVideoUploadResponse,
   LoginInput,
   PublicUser,
   RegisterInput,
-  TrainingSessionDTO
+  TrainingSessionDTO,
+  VideoDTO
 } from "@cornerman/shared-types";
 
 export interface ApiClientOptions {
@@ -100,7 +104,20 @@ export function createApiClient(options: ApiClientOptions) {
       }),
     listSessions: () => request<TrainingSessionDTO[]>("/training-sessions"),
     getSession: (id: string) =>
-      request<TrainingSessionDTO>(`/training-sessions/${id}`)
+      request<TrainingSessionDTO>(`/training-sessions/${id}`),
+    // ---- videos ----
+    initVideoUpload: (sessionId: string, input: InitVideoUploadInput) =>
+      request<InitVideoUploadResponse>(
+        `/training-sessions/${sessionId}/videos/upload-init`,
+        { method: "POST", body: input }
+      ),
+    completeVideoUpload: (input: CompleteVideoUploadInput) =>
+      request<VideoDTO>(`/videos/${input.videoId}/upload-complete`, {
+        method: "POST"
+      }),
+    listSessionVideos: (sessionId: string) =>
+      request<VideoDTO[]>(`/training-sessions/${sessionId}/videos`),
+    getVideo: (id: string) => request<VideoDTO>(`/videos/${id}`)
   };
 }
 

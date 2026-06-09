@@ -18,3 +18,5 @@ export { Tabs } from "./tabs";
 export type { TabItem, TabsProps } from "./tabs";
 export { AppShell, navItemClass } from "./app-shell";
 export type { AppShellProps } from "./app-shell";
+export { Uploader } from "./uploader";
+export type { UploaderProps } from "./uploader";

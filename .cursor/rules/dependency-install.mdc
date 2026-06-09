@@ -1,0 +1,24 @@
+---
+description: 安装任何依赖前必须先告知用户，由用户执行安装
+alwaysApply: true
+---
+
+# 依赖安装规则
+
+需要新增**任何依赖**时，不要自行安装，必须先告诉用户：装什么、为什么、用哪条命令，由**用户**来执行安装。
+
+## 适用范围（都要先问）
+- npm / pnpm 包（含 `pnpm add`、`pnpm install <pkg>`、devDependencies）
+- Python 包（`pip install`、改 `requirements.txt` / `pyproject.toml`）
+- 系统级工具（`brew install`、`apt`、`ffmpeg`、CLI 等）
+- 全局工具（`npm i -g`、`pipx` 等）
+
+## 正确做法
+1. 停下，列出需要的依赖与用途。
+2. 给出确切安装命令（含目标 workspace，如 `pnpm --filter @cornerman/api add xxx`）。
+3. 等用户安装完成并确认后，再继续后续编码 / 验证。
+
+## 例外（无需先问）
+- 依赖已在对应 `package.json` / `requirements.txt` 中声明，只是执行一次同步安装（如 `pnpm install` 还原 lockfile）。
+
+> 不要用 Shell 工具直接跑安装命令来"顺手装上"。先告知，后由用户安装。

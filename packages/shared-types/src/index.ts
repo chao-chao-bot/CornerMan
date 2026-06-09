@@ -135,6 +135,62 @@ export interface VideoSegment extends BaseEntity {
 }
 
 // ---------------------------------------------------------------------------
+// 视频上传 / 处理（P2）
+// ---------------------------------------------------------------------------
+
+/** 发起上传：客户端声明文件元数据，换取直传凭证 */
+export interface InitVideoUploadInput {
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+export interface InitVideoUploadResponse {
+  videoId: ID;
+  objectKey: string;
+  /** 预签名 PUT 直传地址（浏览器直接 PUT 文件体） */
+  uploadUrl: string;
+  /** 上传时必须带上的请求头（如 Content-Type） */
+  uploadHeaders: Record<string, string>;
+  /** 凭证有效期（秒） */
+  expiresIn: number;
+}
+
+/** 直传完成回调：触发后台处理 */
+export interface CompleteVideoUploadInput {
+  videoId: ID;
+}
+
+export interface VideoSegmentDTO {
+  id: ID;
+  videoId: ID;
+  startMs: number;
+  endMs: number;
+  tags: string[];
+  aiConfidence?: number;
+}
+
+/** 视频对外视图：私有对象通过签名 URL 暴露（仅在 ready 时返回） */
+export interface VideoDTO {
+  id: ID;
+  sessionId: ID;
+  status: VideoStatus;
+  originalFileName?: string;
+  durationMs?: number;
+  width?: number;
+  height?: number;
+  errorMessage?: string;
+  /** 封面签名 URL（ready 时） */
+  posterUrl?: string;
+  /** 720p 播放签名 URL（ready 时） */
+  playbackUrl?: string;
+  segmentCount: number;
+  segments?: VideoSegmentDTO[];
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
+}
+
+// ---------------------------------------------------------------------------
 // 分析报告（AI 起草 + 用户定稿）
 // ---------------------------------------------------------------------------
 

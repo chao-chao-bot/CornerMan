@@ -9,6 +9,7 @@ import { ApiError } from "@cornerman/api-client";
 import { AppFrame } from "../../components/app-frame";
 import { api } from "../../lib/api";
 import { TRAINING_TYPE_LABEL } from "../../lib/labels";
+import { VideosPanel } from "./videos-panel";
 
 export default function SessionDetailPage() {
   const params = useParams<{ id: string }>();
@@ -60,9 +61,11 @@ export default function SessionDetailPage() {
             </dl>
           </Card>
 
-          <Card title="视频与 AI 复盘">
+          <VideosPanel sessionId={session.id} />
+
+          <Card title="AI 复盘">
             <p className="py-6 text-center text-[13px] text-ink-3">
-              视频上传与 AI 复盘将在 P2 / P3 阶段开放。
+              AI 复盘将在 P3 阶段开放。
             </p>
           </Card>
         </div>

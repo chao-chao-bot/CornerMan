@@ -47,10 +47,17 @@ model Video {
   sessionId       String
   status          String // uploading | uploaded | processing | ready | failed
   objectKey       String
+  originalFileName String?
+  contentType      String?
+  sizeBytes        Int?
   durationMs      Int?
   width           Int?
   height          Int?
   posterObjectKey String?
+  playback720Key  String?
+  playback360Key  String?
+  framesPrefix    String?
+  errorMessage    String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?

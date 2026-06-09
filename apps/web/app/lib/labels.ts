@@ -11,3 +11,11 @@ export const TRAINING_TYPE_OPTIONS: { value: TrainingType; label: string }[] = [
   { value: "self_training", label: "自我训练" },
   { value: "sparring", label: "实战约练" }
 ];
+
+export const VIDEO_STATUS_LABEL: Record<string, string> = {
+  uploading: "上传中",
+  uploaded: "待处理",
+  processing: "处理中",
+  ready: "就绪",
+  failed: "失败"
+};

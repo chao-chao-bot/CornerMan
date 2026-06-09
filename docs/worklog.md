@@ -3,6 +3,23 @@
 记录每次大型修改。新记录追加在最上方（倒序）。
 每条字段：日期 / 范围 / 改动摘要 / 影响文件 / 备注。
 
+## 2026-06-09 · P2 视频上传 + 处理（直传 + 转码流水线）
+- 范围：api / video-worker / packages / web / infra / 文档
+- 改动摘要：
+  - **schema**：`Video` 增 `originalFileName/contentType/sizeBytes/playback720Key/playback360Key/framesPrefix/errorMessage`；migration `video_processing_fields`
+  - **shared-types**：新增 `InitVideoUploadInput/Response`、`CompleteVideoUploadInput`、`VideoDTO`、`VideoSegmentDTO`
+  - **api · storage**：`StorageService` 抽象 + `MinioStorageService`（AWS SDK v3，S3 兼容预签名 PUT/GET，启动 `ensureBucket`），全局 `StorageModule`；生产预留阿里云 OSS
+  - **api · queue**：轻量 `VideoQueueService`（bullmq Queue，队列 `video.process`，jobId=videoId + 3 次重试），全局 `QueueModule`
+  - **api · videos**：`upload-init`（建 Video=uploading + 预签名）、`upload-complete`（uploading→uploaded + 入队）、列表、详情（ready 时签名 poster/playback URL）；JWT + session 归属校验
+  - **video-worker**：拆分 `storage/ffmpeg/segments/process-video/index`；下载原片→ffprobe→转码 720p/360p→首帧封面→每秒抽帧→上传产物→场景切点粗切片写 `VideoSegment`→ready→入队 `ai.analyze`；失败写 `failed`+errorMessage
+  - **api-client**：`initVideoUpload/completeVideoUpload/listSessionVideos/getVideo`
+  - **ui**：`Uploader`（拖拽 + H5 capture）
+  - **web**：`useVideoUpload`（XHR 预签名 PUT 进度 + 顺序上传）、训练详情页 `VideosPanel`（上传区 + 进度 + 视频卡状态徽章/封面/片段数 + 3s 轮询直至稳定）
+  - **infra**：MinIO 容器加 `MINIO_API_CORS_ALLOW_ORIGIN` 放行 `localhost:3000` 浏览器直传
+- 影响文件：`apps/api/prisma/**`、`apps/api/src/{storage,queue,videos,app.module}.ts/**`、`apps/video-worker/src/**`、`apps/video-worker/.env`、`packages/{shared-types,api-client,ui}/**`、`apps/web/app/{lib,sessions/[id]}/**`、`infra/docker-compose.yml`、`docs/roadmap.md`
+- 验证：curl 全链路 init→PUT(200)→complete→轮询 ready（durationMs/宽高写入、2 候选片段、poster+720p 签名 URL）；poster GET 200 image/jpeg；MinIO CORS 预检 204 + PUT 200（Origin=localhost:3000）；`ai.analyze` 已入队；web 登录/建训练/详情页渲染上传区通过（浏览器自动化无法触发系统文件选择器，故 PUT 用同源 CORS 模拟验证）；`tsc --noEmit` 全绿
+- 备注：新增依赖 `@aws-sdk/client-s3`、`@aws-sdk/s3-request-presigner`（api）、`@aws-sdk/client-s3`/`@prisma/client`/`dotenv`（worker）；需本机 `ffmpeg`；断点续传/tus、阿里云 STS 实装留待接 OSS 时
+
 ## 2026-06-09 · P1 账号 + 训练记录纵切（首条端到端链路）
 - 范围：api / packages / web / infra / 文档
 - 改动摘要：

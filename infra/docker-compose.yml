@@ -35,6 +35,8 @@ services:
     environment:
       MINIO_ROOT_USER: cornerman
       MINIO_ROOT_PASSWORD: cornerman123
+      # 允许浏览器从 web(3000) 直传/读取（预签名 PUT/GET）。生产用具体来源白名单。
+      MINIO_API_CORS_ALLOW_ORIGIN: "http://localhost:3000,http://127.0.0.1:3000"
     ports:
       - "9000:9000"
       - "9001:9001"

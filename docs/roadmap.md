@@ -14,10 +14,10 @@
 ## 状态图例
 - `[x]` 完成 · `[~]` 进行中 · `[ ]` 未开始
 
-整体进度：**P0 完成，P1 完成，P2 待启动**。
+整体进度：**P0 完成，P1 完成，P2 完成，P3 待启动**。
 
 ```
-P0 基建 ✅ → P1 账号+训练记录 ✅ → P2 视频上传+处理 → P3 AI 复盘闭环 → P4 片段+追踪 → P5 趋势+上线
+P0 基建 ✅ → P1 账号+训练记录 ✅ → P2 视频上传+处理 ✅ → P3 AI 复盘闭环 → P4 片段+追踪 → P5 趋势+上线
 ```
 
 ---
@@ -51,15 +51,17 @@ P0 基建 ✅ → P1 账号+训练记录 ✅ → P2 视频上传+处理 → P3 A
 
 ---
 
-## P2 · 视频上传 + 处理
+## P2 · 视频上传 + 处理（已完成）
 对应 PRD「视频上传 / 视频处理」Must 项。
 
-- [ ] `api/videos`：签发 OSS/MinIO STS 直传凭证、上传回调、`VideoAsset` 状态机
-- [ ] `web`：上传组件（PC 拖拽批量 + H5 相册/拍摄），上传进度与断点续传
-- [ ] `video-worker`：消费 `video.process`，`ffmpeg` 转码 720p/360p + 首帧封面 + 每 1s 抽帧
-- [ ] `video-worker`：基于动作密度粗切片，产出候选 `VideoSegment`，写回状态并入队 `ai.analyze`
+- [x] `api/videos`：MinIO 预签名 PUT 直传凭证、上传完成回调、`Video` 状态机（uploading→uploaded→processing→ready/failed），`StorageService` 抽象预留阿里云 OSS
+- [x] `web`：上传组件（PC 拖拽 + H5 `capture` 相册/拍摄），XHR 进度条 + 失败提示
+- [x] `video-worker`：消费 `video.process`，`ffmpeg` 转码 720p/360p + 首帧封面 + 每 1s 抽帧
+- [x] `video-worker`：基于场景切点粗切片，产出候选 `VideoSegment`，写回 ready 并入队 `ai.analyze`
 
-**退出标准**：单个 10 分钟视频可后台稳定上传，并产出封面与候选片段。
+**退出标准（已达成）**：视频可经预签名直传，后台自动转码并产出封面与候选片段；curl 全链路（init→PUT→complete→ready）通过，MinIO CORS 对 `localhost:3000` 预检/PUT 正常，封面签名 URL 可读，`ai.analyze` 已入队待 P3 消费。
+
+> 前置：本机需安装 `ffmpeg`/`ffprobe`；MinIO 通过容器环境变量 `MINIO_API_CORS_ALLOW_ORIGIN` 放行浏览器直传（见 `infra/docker-compose.yml`）。
 
 ---
 

@@ -2,6 +2,8 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { HealthController } from "./health.controller";
 import { PrismaModule } from "./prisma/prisma.module";
+import { StorageModule } from "./storage/storage.module";
+import { QueueModule } from "./queue/queue.module";
 import { AuthModule } from "./auth/auth.module";
 import { UsersModule } from "./users/users.module";
 import { TrainingSessionsModule } from "./training-sessions/training-sessions.module";
@@ -17,6 +19,8 @@ import { ExportModule } from "./export/export.module";
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    StorageModule,
+    QueueModule,
     AuthModule,
     UsersModule,
     TrainingSessionsModule,

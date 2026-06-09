@@ -43,32 +43,37 @@ CornerMan/
 
 ## 本地启动
 
-> 当前为工程骨架，模块多为占位，尚未实现业务逻辑。
+> 已完成 P0-P2：账号 / 训练记录 / 视频上传与转码处理可端到端跑通。
 
 ```bash
 # 1. 安装依赖（Node 20+，pnpm 9）
 pnpm install
 
-# 2. 准备容器 runtime（Podman，开源，无需 Docker Desktop）
+# 2. 安装 ffmpeg（video-worker 转码/抽帧/封面所需）
+brew install ffmpeg
+
+# 3. 准备容器 runtime（Podman，开源，无需 Docker Desktop）
 #    首次需安装并初始化一个 Linux VM：
 brew install podman podman-compose
 podman machine init   # 仅首次，下载 VM 镜像
 podman machine start
 
-# 3. 启动本地依赖（Postgres / Redis / MinIO）
+# 4. 启动本地依赖（Postgres / Redis / MinIO）
+#    MinIO 已通过容器环境变量放行 localhost:3000 的浏览器直传（CORS）。
 pnpm infra:up         # 等价于 podman-compose -f infra/docker-compose.yml up -d
 
-# 4. 配置环境变量
+# 5. 配置环境变量并建表
 cp infra/.env.example .env
+pnpm --filter @cornerman/api exec prisma migrate dev
 
-# 5. 启动全部 Node 服务（web / api / video-worker）
+# 6. 启动全部 Node 服务（web / api / video-worker）
 pnpm dev
 
-# 6. 启动 Python 姿态分析服务
+# 7. 启动 Python 姿态分析服务
 cd apps/ai-service
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 5000
 ```
 
-默认端口：web `3000`、api `4000`、ai-service `5000`、MinIO 控制台 `9001`。
+默认端口：web `3000`、api `4000`、ai-service `5000`、Postgres `5433`（避开本机自带 5432）、MinIO `9000` / 控制台 `9001`。
