@@ -48,16 +48,22 @@ CornerMan/
 # 1. 安装依赖（Node 20+，pnpm 9）
 pnpm install
 
-# 2. 启动本地依赖（Postgres / Redis / MinIO）
-docker compose -f infra/docker-compose.yml up -d
+# 2. 准备容器 runtime（Podman，开源，无需 Docker Desktop）
+#    首次需安装并初始化一个 Linux VM：
+brew install podman podman-compose
+podman machine init   # 仅首次，下载 VM 镜像
+podman machine start
 
-# 3. 配置环境变量
+# 3. 启动本地依赖（Postgres / Redis / MinIO）
+pnpm infra:up         # 等价于 podman-compose -f infra/docker-compose.yml up -d
+
+# 4. 配置环境变量
 cp infra/.env.example .env
 
-# 4. 启动全部 Node 服务（web / api / video-worker）
+# 5. 启动全部 Node 服务（web / api / video-worker）
 pnpm dev
 
-# 5. 启动 Python 姿态分析服务
+# 6. 启动 Python 姿态分析服务
 cd apps/ai-service
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt

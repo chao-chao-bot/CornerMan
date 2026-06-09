@@ -13,7 +13,10 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "infra:up": "podman-compose -f infra/docker-compose.yml up -d",
+    "infra:down": "podman-compose -f infra/docker-compose.yml down",
+    "infra:logs": "podman-compose -f infra/docker-compose.yml logs -f"
   },
   "devDependencies": {
     "prettier": "^3.3.3",

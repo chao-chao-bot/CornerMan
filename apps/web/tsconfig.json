@@ -3,13 +3,27 @@
   "compilerOptions": {
     "noEmit": true,
     "jsx": "preserve",
-    "plugins": [{ "name": "next" }],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "paths": {
-      "@/*": ["./app/*"],
-      "@cornerman/shared-types": ["../../packages/shared-types/src/index.ts"],
-      "@cornerman/api-client": ["../../packages/api-client/src/index.ts"],
-      "@cornerman/ui": ["../../packages/ui/src/index.ts"]
-    }
+      "@/*": [
+        "./app/*"
+      ],
+      "@cornerman/shared-types": [
+        "../../packages/shared-types/src/index.ts"
+      ],
+      "@cornerman/api-client": [
+        "../../packages/api-client/src/index.ts"
+      ],
+      "@cornerman/ui": [
+        "../../packages/ui/src/index.ts"
+      ]
+    },
+    "allowJs": true,
+    "incremental": true
   },
   "include": [
     "next-env.d.ts",
@@ -17,5 +31,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

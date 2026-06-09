@@ -1,6 +1,8 @@
 # CornerMan · 本地开发依赖
 # Postgres 15 + Redis 7 + MinIO（阿里云 OSS 本地替代）
-# 用法：docker compose -f infra/docker-compose.yml up -d
+# 本地 runtime 使用 Podman（开源，无需 Docker Desktop）。
+# 用法：pnpm infra:up  （等价于 podman-compose -f infra/docker-compose.yml up -d）
+# 文件为标准 compose，docker compose 同样可读。
 services:
   postgres:
     image: postgres:15-alpine

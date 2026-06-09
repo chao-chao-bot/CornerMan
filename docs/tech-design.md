@@ -29,7 +29,8 @@
 | 前端 | `Next.js 14` App Router + `Tailwind CSS` + 自建响应式组件库 | PC 优先，响应式兼容移动端 H5 |
 | 调试 | Chrome DevTools 设备模拟 + 真机 `vConsole` | 双端调试 |
 | 鉴权 | 邮箱/用户名 + 密码 注册登录 + JWT | 单人账号，MVP 不接短信，预留三方登录 |
-| 部署 | 阿里云 ECS + Docker Compose（MVP），后续可迁移 ACK | |
+| 本地容器 runtime | Podman + podman-compose（开源，免 Docker Desktop） | compose 文件与 Docker 通用 |
+| 部署 | 阿里云 ECS + Docker Compose（MVP），后续可迁移 ACK | 生产沿用 Docker，compose 两端通用 |
 | CI | GitHub Actions（turbo 远程缓存） | |
 
 ## 3. Monorepo 目录结构
