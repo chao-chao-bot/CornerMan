@@ -11,6 +11,7 @@ import "dotenv/config";
 import { Queue, Worker } from "bullmq";
 import { PrismaClient } from "@prisma/client";
 import { processVideo } from "./process-video.js";
+import { analyzeSession } from "./analyze.js";
 
 const connection = {
   host: process.env.REDIS_HOST ?? "127.0.0.1",
@@ -44,8 +45,25 @@ worker.on("failed", async (job, err) => {
   }
 });
 
+const aiWorker = new Worker<{ videoId: string; sessionId: string }>(
+  "ai.analyze",
+  async (job) => {
+    console.log(`[ai-worker] 开始分析 session ${job.data.sessionId}`);
+    await analyzeSession(prisma, job.data.videoId, job.data.sessionId);
+  },
+  { connection, concurrency: 1 }
+);
+
+aiWorker.on("ready", () =>
+  console.log("[ai-worker] ready, listening ai.analyze")
+);
+aiWorker.on("failed", (job, err) =>
+  console.error(`[ai-worker] job ${job?.id} failed`, err.message)
+);
+
 async function shutdown() {
   await worker.close();
+  await aiWorker.close();
   await aiQueue.close();
   await prisma.$disconnect();
   process.exit(0);

@@ -7,12 +7,17 @@
 import type {
   AuthResponse,
   CompleteVideoUploadInput,
+  CreateRevisionInput,
   CreateTrainingSessionInput,
   InitVideoUploadInput,
   InitVideoUploadResponse,
   LoginInput,
   PublicUser,
   RegisterInput,
+  ReportDTO,
+  ScoreDTO,
+  SessionListItemDTO,
+  SessionReportDTO,
   TrainingSessionDTO,
   VideoDTO
 } from "@cornerman/shared-types";
@@ -102,9 +107,14 @@ export function createApiClient(options: ApiClientOptions) {
         method: "POST",
         body: input
       }),
-    listSessions: () => request<TrainingSessionDTO[]>("/training-sessions"),
+    listSessions: () =>
+      request<SessionListItemDTO[]>("/training-sessions"),
     getSession: (id: string) =>
       request<TrainingSessionDTO>(`/training-sessions/${id}`),
+    deleteSession: (id: string) =>
+      request<{ id: string }>(`/training-sessions/${id}`, {
+        method: "DELETE"
+      }),
     // ---- videos ----
     initVideoUpload: (sessionId: string, input: InitVideoUploadInput) =>
       request<InitVideoUploadResponse>(
@@ -117,7 +127,24 @@ export function createApiClient(options: ApiClientOptions) {
       }),
     listSessionVideos: (sessionId: string) =>
       request<VideoDTO[]>(`/training-sessions/${sessionId}/videos`),
-    getVideo: (id: string) => request<VideoDTO>(`/videos/${id}`)
+    getVideo: (id: string) => request<VideoDTO>(`/videos/${id}`),
+    // ---- reports / revisions / scoring ----
+    getSessionReport: (sessionId: string) =>
+      request<SessionReportDTO>(`/training-sessions/${sessionId}/report`),
+    finalizeReport: (sessionId: string) =>
+      request<ReportDTO>(`/training-sessions/${sessionId}/report/finalize`, {
+        method: "POST"
+      }),
+    createRevision: (reportId: string, input: CreateRevisionInput) =>
+      request<SessionReportDTO>(`/reports/${reportId}/revisions`, {
+        method: "POST",
+        body: input
+      }),
+    updateScore: (sessionId: string, dimension: string, userScore: number) =>
+      request<ScoreDTO>(
+        `/training-sessions/${sessionId}/scores/${dimension}`,
+        { method: "PATCH", body: { userScore } }
+      )
   };
 }
 

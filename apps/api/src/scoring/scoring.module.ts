@@ -1,8 +1,15 @@
 import { Module } from "@nestjs/common";
+import { AuthModule } from "../auth/auth.module";
+import { ScoringService } from "./scoring.service";
+import { ScoringController } from "./scoring.controller";
 
 /**
- * 评分模块（占位）
- * 5 维评分计算，AI 原始分与用户修订分并存。
+ * 评分模块
+ * 7 维评分：AI 给出初始分 + 置信度，用户可逐维覆盖 userScore。
  */
-@Module({})
+@Module({
+  imports: [AuthModule],
+  controllers: [ScoringController],
+  providers: [ScoringService]
+})
 export class ScoringModule {}

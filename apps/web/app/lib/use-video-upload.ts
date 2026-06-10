@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { ApiError } from "@cornerman/api-client";
-import { api } from "./api";
+import { uploadVideoFile } from "./upload-video";
 
 export type UploadPhase =
   | "preparing"
@@ -17,33 +17,6 @@ export interface UploadItem {
   progress: number;
   phase: UploadPhase;
   error?: string;
-}
-
-/** XHR PUT 到预签名地址，回调进度（0~100） */
-function putWithProgress(
-  url: string,
-  file: File,
-  headers: Record<string, string>,
-  onProgress: (percent: number) => void
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("PUT", url);
-    for (const [k, v] of Object.entries(headers)) {
-      xhr.setRequestHeader(k, v);
-    }
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        onProgress(Math.round((e.loaded / e.total) * 100));
-      }
-    };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error(`上传失败（${xhr.status}）`));
-    };
-    xhr.onerror = () => reject(new Error("网络错误，上传失败"));
-    xhr.send(file);
-  });
 }
 
 export function useVideoUpload(sessionId: string, onComplete?: () => void) {
@@ -63,18 +36,11 @@ export function useVideoUpload(sessionId: string, onComplete?: () => void) {
         { id: key, fileName: file.name, progress: 0, phase: "preparing" }
       ]);
       try {
-        const init = await api.initVideoUpload(sessionId, {
-          fileName: file.name,
-          contentType: file.type || "video/mp4",
-          sizeBytes: file.size
-        });
         update(key, { phase: "uploading" });
-        await putWithProgress(init.uploadUrl, file, init.uploadHeaders, (p) =>
+        await uploadVideoFile(sessionId, file, (p) =>
           update(key, { progress: p })
         );
-        update(key, { phase: "finalizing", progress: 100 });
-        await api.completeVideoUpload({ videoId: init.videoId });
-        update(key, { phase: "done" });
+        update(key, { phase: "done", progress: 100 });
         onComplete?.();
       } catch (err) {
         update(key, {

@@ -31,6 +31,9 @@ model TrainingSession {
   title        String
   trainingType String // private_lesson | self_training | sparring
   trainedAt    DateTime
+  durationMin  Int?
+  location     String?
+  focus        String? // 本次重点
   userNote     String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -82,15 +85,16 @@ model VideoSegment {
 }
 
 model AnalysisReport {
-  id           String   @id @default(cuid())
-  sessionId    String
-  status       String // draft | final
-  summary      String
-  items        Json
-  modelVersion String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  deletedAt    DateTime?
+  id            String   @id @default(cuid())
+  sessionId     String
+  status        String // draft | final
+  summary       String
+  items         Json
+  modelVersion  String?
+  promptVersion String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
 
   session   TrainingSession  @relation(fields: [sessionId], references: [id])
   revisions ReportRevision[]
@@ -126,14 +130,18 @@ model ProblemThread {
 }
 
 model Score {
-  id         String   @id @default(cuid())
-  sessionId  String
-  dimension  String // stance | guard | footwork | punch_technique | defense | combination | overall
-  aiScore    Float?
-  userScore  Float?
-  confidence Float?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  sessionId          String
+  dimension          String // stance | guard | footwork | punch_technique | defense | combination | overall
+  aiScore            Float?
+  userScore          Float?
+  confidence         Float?
+  rationale          String?
+  evidenceSegmentIds String[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   session TrainingSession @relation(fields: [sessionId], references: [id])
+
+  @@unique([sessionId, dimension])
 }

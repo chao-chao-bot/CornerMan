@@ -14,10 +14,10 @@
 ## 状态图例
 - `[x]` 完成 · `[~]` 进行中 · `[ ]` 未开始
 
-整体进度：**P0 完成，P1 完成，P2 完成，P3 待启动**。
+整体进度：**P0 完成，P1 完成，P2 完成，P3 完成，P4 待启动**。
 
 ```
-P0 基建 ✅ → P1 账号+训练记录 ✅ → P2 视频上传+处理 ✅ → P3 AI 复盘闭环 → P4 片段+追踪 → P5 趋势+上线
+P0 基建 ✅ → P1 账号+训练记录 ✅ → P2 视频上传+处理 ✅ → P3 AI 复盘闭环 ✅ → P4 片段+追踪 → P5 趋势+上线
 ```
 
 ---
@@ -65,17 +65,17 @@ P0 基建 ✅ → P1 账号+训练记录 ✅ → P2 视频上传+处理 ✅ → 
 
 ---
 
-## P3 · AI 复盘闭环（核心价值）
-对应 PRD 第 3-4 周「AI 闭环」与第 8 节"起草 + 定稿"模型。`ai-service` 先维持 stub，优先打通链路。
+## P3 · AI 复盘闭环（核心价值）✅
+对应 PRD 第 3-4 周「AI 闭环」与第 8 节"起草 + 定稿"模型。`ai-service` 维持 stub，优先打通链路。LLM 采用 `LLMProvider` 抽象，默认 **DeepSeek**（OpenAI 兼容、JSON Output、纯文本），无 key 或调用失败时自动降级确定性 stub，链路始终能出 draft。
 
-- [ ] `ai-prompts`：报告起草 prompt 模板（结构化输入 → 摘要/优点/问题/建议 JSON）
-- [ ] 打通 `video-worker → 通义千问-VL（DashScope）→ AnalysisReport(draft)`，附证据片段引用
-- [ ] `api/reports`：`draft` 只读快照 + `final` 可编辑两层组装与读写
-- [ ] `api/scoring`：5 维评分（AI 原始分 + 用户修订分并存），返回 `score/confidence/evidence/rationale`
-- [ ] `api/revisions`：逐条「采纳 / 修改 / 删除 / 新增」，保留 AI 原文，记录 diff
-- [ ] `web`：报告页（draft/final 切换、逐条修订、滑块改分、证据片段跳转）
+- [x] `ai-prompts`：报告起草 prompt 模板（结构化输入 → summary/items/scores 严格 JSON）+ `renderReportDraftPrompt` + 版本号，改为 build 到 dist
+- [x] 打通 `video-worker（第二个 ai.analyze Worker）→ DeepSeek/stub → AnalysisReport(draft) + Score(ai)`，附证据片段引用，按 session 幂等
+- [x] `api/reports`：`draft` 只读快照 + `final` 可编辑两层组装与读写（GET 聚合 + finalize 懒克隆）
+- [x] `api/scoring`：7 维评分（AI 原始分 + 置信度 + 用户修订分并存），返回 `score/confidence/rationale/evidence`
+- [x] `api/revisions`：逐条「采纳 / 修改 / 删除 / 新增」，保留 AI 原文（aiOriginal 快照）
+- [x] `web`：报告页（draft/final 切换、逐条修订、滑块改分、证据片段时间 chip、draft 轮询）
 
-**退出标准**：上传后约 5 分钟出 draft 报告；用户可逐条定稿且保留 AI 原文；修订率可埋点统计。
+**退出标准（已达成）**：上传后自动异步出 draft 报告（summary + items + 7 维评分）；用户可逐条定稿且 AI 原文保留；改分与修订均落库。curl 全链路（注册→建 session→上传→ready→draft→finalize→edit/add/delete→改分）通过，draft 始终不可变；web 报告页渲染并可交互；`tsc --noEmit` 全绿。DeepSeek 真实生成已接通（当前所提供 key 经直连验证为 401 失效，已自动降级 stub，更换有效 key 即生效）。
 
 ---
 

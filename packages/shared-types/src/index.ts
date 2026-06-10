@@ -90,6 +90,12 @@ export interface CreateTrainingSessionInput {
   title: string;
   trainingType: TrainingType;
   trainedAt: ISODateString;
+  /** 时长（分钟） */
+  durationMin?: number;
+  /** 训练地点 */
+  location?: string;
+  /** 本次重点 */
+  focus?: string;
   userNote?: string;
 }
 
@@ -99,9 +105,24 @@ export interface TrainingSessionDTO {
   title: string;
   trainingType: TrainingType;
   trainedAt: ISODateString;
+  durationMin?: number;
+  location?: string;
+  focus?: string;
   userNote?: string;
   createdAt: ISODateString;
   updatedAt: ISODateString;
+}
+
+/** 列表页报告状态：尚无报告（视频处理中/待上传）/ AI 草稿待复盘 / 用户已定稿 */
+export type SessionReportStatus = "pending" | "draft" | "final";
+
+/** 训练列表项视图（含报告状态与综合分聚合） */
+export interface SessionListItemDTO extends TrainingSessionDTO {
+  reportStatus: SessionReportStatus;
+  /** 综合分（用户分优先，否则 AI 分） */
+  overallScore?: number;
+  /** AI 综合分（用于副值展示） */
+  aiScore?: number;
 }
 
 export type VideoStatus =
@@ -270,6 +291,107 @@ export interface Score extends BaseEntity {
   userScore?: number;
   /** AI 评分置信度 0~1 */
   confidence?: number;
+}
+
+// ---------------------------------------------------------------------------
+// AI 复盘闭环 DTO（P3）
+// ---------------------------------------------------------------------------
+
+/** 报告对外视图（draft 或 final） */
+export interface ReportDTO {
+  id: ID;
+  sessionId: ID;
+  status: ReportStatus;
+  summary: string;
+  items: AnalysisReportItem[];
+  modelVersion?: string;
+  promptVersion?: string;
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
+}
+
+/** 评分对外视图（含可解释字段） */
+export interface ScoreDTO {
+  dimension: ScoreDimension;
+  aiScore?: number;
+  userScore?: number;
+  confidence?: number;
+  rationale?: string;
+  evidenceSegmentIds: ID[];
+}
+
+/** 修订记录对外视图 */
+export interface RevisionDTO {
+  id: ID;
+  reportId: ID;
+  itemKey: string;
+  action: RevisionAction;
+  aiOriginal?: string;
+  userResult?: string;
+  createdAt: ISODateString;
+}
+
+/** 训练 session 的报告聚合响应 */
+export interface SessionReportDTO {
+  draft: ReportDTO | null;
+  final: ReportDTO | null;
+  scores: ScoreDTO[];
+  revisions: RevisionDTO[];
+}
+
+/** 逐条修订入参 */
+export interface CreateRevisionInput {
+  itemKey: string;
+  action: RevisionAction;
+  title?: string;
+  detail?: string;
+  dimension?: ScoreDimension;
+  problemCode?: string;
+  segmentId?: ID;
+}
+
+/** 改分入参 */
+export interface UpdateScoreInput {
+  userScore: number;
+}
+
+// ---------------------------------------------------------------------------
+// LLM 起草输入 / 输出（P3）
+// ---------------------------------------------------------------------------
+
+export interface ReportDraftSegmentInput {
+  id: ID;
+  startMs: number;
+  endMs: number;
+  tags?: string[];
+}
+
+/** 姿态指标（ai-service stub 产出，可缺省） */
+export interface PoseMetrics {
+  [key: string]: number | string | undefined;
+}
+
+/** LLM 起草报告的结构化输入 */
+export interface ReportDraftInput {
+  trainingType: TrainingType;
+  userNote?: string;
+  segments: ReportDraftSegmentInput[];
+  poseMetrics?: PoseMetrics;
+}
+
+/** LLM 起草报告的结构化输出 */
+export interface ReportDraftScore {
+  dimension: ScoreDimension;
+  aiScore: number;
+  confidence: number;
+  rationale?: string;
+  evidenceSegmentIds?: ID[];
+}
+
+export interface ReportDraftOutput {
+  summary: string;
+  items: AnalysisReportItem[];
+  scores: ReportDraftScore[];
 }
 
 // ---------------------------------------------------------------------------

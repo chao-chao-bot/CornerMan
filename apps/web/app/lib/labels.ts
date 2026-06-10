@@ -1,4 +1,4 @@
-import type { TrainingType } from "@cornerman/shared-types";
+import type { ScoreDimension, TrainingType } from "@cornerman/shared-types";
 
 export const TRAINING_TYPE_LABEL: Record<TrainingType, string> = {
   private_lesson: "私教课",
@@ -19,3 +19,23 @@ export const VIDEO_STATUS_LABEL: Record<string, string> = {
   ready: "就绪",
   failed: "失败"
 };
+
+export const SCORE_DIMENSION_LABEL: Record<ScoreDimension, string> = {
+  stance: "站架",
+  guard: "护手",
+  footwork: "步法",
+  punch_technique: "出拳技术",
+  defense: "防守",
+  combination: "组合拳",
+  overall: "整体"
+};
+
+export const SCORE_DIMENSION_ORDER: ScoreDimension[] = [
+  "stance",
+  "guard",
+  "footwork",
+  "punch_technique",
+  "defense",
+  "combination",
+  "overall"
+];

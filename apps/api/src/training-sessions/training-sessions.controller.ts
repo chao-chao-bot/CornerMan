@@ -1,12 +1,16 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
   UseGuards
 } from "@nestjs/common";
-import type { TrainingSessionDTO } from "@cornerman/shared-types";
+import type {
+  SessionListItemDTO,
+  TrainingSessionDTO
+} from "@cornerman/shared-types";
 import { JwtAuthGuard, type AuthUser } from "../auth/jwt-auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { TrainingSessionsService } from "./training-sessions.service";
@@ -26,7 +30,7 @@ export class TrainingSessionsController {
   }
 
   @Get()
-  list(@CurrentUser() user: AuthUser): Promise<TrainingSessionDTO[]> {
+  list(@CurrentUser() user: AuthUser): Promise<SessionListItemDTO[]> {
     return this.sessions.findAllByUser(user.userId);
   }
 
@@ -36,5 +40,13 @@ export class TrainingSessionsController {
     @Param("id") id: string
   ): Promise<TrainingSessionDTO> {
     return this.sessions.findOne(user.userId, id);
+  }
+
+  @Delete(":id")
+  remove(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string
+  ): Promise<{ id: string }> {
+    return this.sessions.remove(user.userId, id);
   }
 }

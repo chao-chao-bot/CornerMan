@@ -3,19 +3,34 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import type { TrainingSessionDTO } from "@cornerman/shared-types";
-import { Card } from "@cornerman/ui";
+import type { TrainingSessionDTO, VideoDTO } from "@cornerman/shared-types";
+import { Button, Module } from "@cornerman/ui";
 import { ApiError } from "@cornerman/api-client";
 import { AppFrame } from "../../components/app-frame";
 import { api } from "../../lib/api";
-import { TRAINING_TYPE_LABEL } from "../../lib/labels";
 import { VideosPanel } from "./videos-panel";
+import { ReportPanel } from "./report-panel";
+import { SessionHeader } from "./session-header";
+
+function SaveState() {
+  return (
+    <span className="flex items-center gap-1.5 text-[13px] text-improved">
+      <span className="h-[7px] w-[7px] rounded-full bg-improved" />
+      已自动保存
+    </span>
+  );
+}
+
+export type SeekRequest = { videoId: string; ms: number; nonce: number };
 
 export default function SessionDetailPage() {
   const params = useParams<{ id: string }>();
   const [session, setSession] = useState<TrainingSessionDTO | null>(null);
+  const [videos, setVideos] = useState<VideoDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [seek, setSeek] = useState<SeekRequest | null>(null);
+  const [evidenceIds, setEvidenceIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!params?.id) return;
@@ -28,8 +43,25 @@ export default function SessionDetailPage() {
       .finally(() => setLoading(false));
   }, [params?.id]);
 
+  function requestSeek(videoId: string, ms: number) {
+    setSeek({ videoId, ms, nonce: Date.now() });
+  }
+
+  const videosReady = videos.some((v) => v.status === "ready");
+
+  const headerExtras = session ? <SaveState /> : undefined;
+
+  const rightPanel = session ? (
+    <ReportPanel
+      sessionId={session.id}
+      videosReady={videosReady}
+      onSeek={requestSeek}
+      onEvidence={setEvidenceIds}
+    />
+  ) : undefined;
+
   return (
-    <AppFrame>
+    <AppFrame headerExtras={headerExtras} rightPanel={rightPanel}>
       <Link href="/sessions" className="text-[13px] text-brand">
         ← 返回训练记录
       </Link>
@@ -42,32 +74,28 @@ export default function SessionDetailPage() {
       )}
 
       {session && (
-        <div className="mt-3 max-w-[720px]">
-          <div className="mb-[18px] flex items-center gap-3">
-            <h1 className="text-[22px] font-bold tracking-tight">
-              {session.title}
-            </h1>
-            <span className="rounded border border-brand-line bg-brand-soft px-2 py-0.5 text-[11px] text-brand">
-              {TRAINING_TYPE_LABEL[session.trainingType]}
-            </span>
-          </div>
+        <div className="mt-3">
+          <SessionHeader session={session} videos={videos} />
 
-          <Card title="训练信息">
-            <dl className="grid grid-cols-[120px_1fr] gap-y-3 text-[13.5px]">
-              <dt className="text-ink-3">训练日期</dt>
-              <dd>{new Date(session.trainedAt).toLocaleString("zh-CN")}</dd>
-              <dt className="text-ink-3">本次感受</dt>
-              <dd>{session.userNote || "（未填写）"}</dd>
-            </dl>
-          </Card>
+          <VideosPanel
+            sessionId={session.id}
+            onVideosChange={setVideos}
+            seek={seek}
+            evidenceIds={evidenceIds}
+          />
 
-          <VideosPanel sessionId={session.id} />
-
-          <Card title="AI 复盘">
-            <p className="py-6 text-center text-[13px] text-ink-3">
-              AI 复盘将在 P3 阶段开放。
+          <Module head="我的补充" meta="文字记录">
+            <div className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-revise">
+              <span className="h-[13px] w-[3px] rounded-sm bg-revise" />
+              我的训练补充
+            </div>
+            <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink">
+              {session.userNote || "（创建训练时未填写感受）"}
             </p>
-          </Card>
+            <p className="mt-2.5 text-[11.5px] text-ink-3">
+              想补充复盘要点？在右侧「+ 新增我的条目」逐条添加，会与 AI 起草并列保留。
+            </p>
+          </Module>
         </div>
       )}
     </AppFrame>

@@ -1,9 +1,12 @@
 import {
   IsEnum,
   IsISO8601,
+  IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   MinLength
 } from "class-validator";
 
@@ -24,6 +27,22 @@ export class CreateTrainingSessionDto {
 
   @IsISO8601()
   trainedAt!: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  durationMin?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  location?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  focus?: string;
 
   @IsOptional()
   @IsString()

@@ -6,10 +6,21 @@ export interface AppShellProps {
   nav: ReactNode;
   /** 顶栏右侧（用户名 / 操作） */
   headerRight?: ReactNode;
+  /** 顶栏 headerRight 左侧的额外内容（保存态 / 页面级操作） */
+  headerExtras?: ReactNode;
+  /** 右侧报告面板；存在时布局切换为三栏 */
+  rightPanel?: ReactNode;
   children: ReactNode;
 }
 
-export function AppShell({ nav, headerRight, children }: AppShellProps) {
+export function AppShell({
+  nav,
+  headerRight,
+  headerExtras,
+  rightPanel,
+  children
+}: AppShellProps) {
+  const threeCol = Boolean(rightPanel);
   return (
     <div className="min-h-screen bg-bg text-ink">
       <header className="sticky top-0 z-30 flex h-[53px] items-center gap-4 border-b border-line bg-surface px-6">
@@ -23,13 +34,31 @@ export function AppShell({ nav, headerRight, children }: AppShellProps) {
           </small>
         </div>
         <div className="flex-1" />
+        {headerExtras}
         {headerRight}
       </header>
-      <div className="grid min-h-[calc(100vh-53px)] grid-cols-1 md:grid-cols-[252px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-line bg-surface px-4 py-5 md:block">
+      <div
+        className={cn(
+          "grid min-h-[calc(100vh-53px)] grid-cols-1",
+          threeCol
+            ? "lg:grid-cols-[252px_minmax(0,1fr)_440px]"
+            : "md:grid-cols-[252px_minmax(0,1fr)]"
+        )}
+      >
+        <aside
+          className={cn(
+            "hidden border-r border-line bg-surface px-4 py-5",
+            threeCol ? "lg:block" : "md:block"
+          )}
+        >
           {nav}
         </aside>
         <main className="overflow-hidden px-6 py-5">{children}</main>
+        {rightPanel && (
+          <aside className="overflow-auto border-t border-line bg-surface-2 px-5 py-6 lg:border-l lg:border-t-0">
+            {rightPanel}
+          </aside>
+        )}
       </div>
     </div>
   );
