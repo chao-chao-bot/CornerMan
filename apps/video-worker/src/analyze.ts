@@ -3,6 +3,7 @@ import type {
   PoseMetrics,
   ReportDraftInput,
   ReportDraftOutput,
+  SegmentMetrics,
   TrainingType
 } from "@cornerman/shared-types";
 import type { PrismaClient } from "@prisma/client";
@@ -11,39 +12,12 @@ import { createLLMProvider, StubProvider, type LLMProvider } from "./llm/index.j
 const provider: LLMProvider = createLLMProvider();
 const stubFallback = new StubProvider();
 
-/** 可选地调用 ai-service 取姿态指标；失败直接忽略（MVP 姿态仍为 stub） */
-async function fetchPoseMetrics(
-  sessionId: string,
-  segments: { id: string; startMs: number; endMs: number }[]
-): Promise<PoseMetrics | undefined> {
-  const url = process.env.AI_SERVICE_URL;
-  if (!url) return undefined;
-  try {
-    const res = await fetch(`${url.replace(/\/+$/, "")}/analyze`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session_id: sessionId,
-        frame_urls: [],
-        segments: segments.map((s) => ({ start_ms: s.startMs, end_ms: s.endMs }))
-      }),
-      signal: AbortSignal.timeout(5000)
-    });
-    if (!res.ok) return undefined;
-    const data = (await res.json()) as { stub?: boolean; metrics?: unknown[] };
-    return {
-      analyzedSegments: Array.isArray(data.metrics) ? data.metrics.length : 0,
-      poseStub: data.stub ? "true" : "false"
-    };
-  } catch {
-    return undefined;
-  }
-}
-
 export async function analyzeSession(
   prisma: PrismaClient,
   videoId: string,
-  sessionId: string
+  sessionId: string,
+  // process-video 阶段 ai-service 姿态分析的汇总指标（经 job payload 透传）
+  poseMetrics?: PoseMetrics
 ): Promise<void> {
   // 幂等：该 session 已有 draft 则跳过，避免覆盖用户可能已定稿的内容
   const existingDraft = await prisma.analysisReport.findFirst({
@@ -64,11 +38,6 @@ export async function analyzeSession(
     orderBy: { startMs: "asc" }
   });
 
-  const poseMetrics = await fetchPoseMetrics(
-    sessionId,
-    segments.map((s) => ({ id: s.id, startMs: s.startMs, endMs: s.endMs }))
-  );
-
   const input: ReportDraftInput = {
     trainingType: session.trainingType as TrainingType,
     userNote: session.userNote ?? undefined,
@@ -76,7 +45,8 @@ export async function analyzeSession(
       id: s.id,
       startMs: s.startMs,
       endMs: s.endMs,
-      tags: s.tags
+      tags: s.tags,
+      metrics: (s.metrics ?? undefined) as SegmentMetrics | undefined
     })),
     poseMetrics
   };

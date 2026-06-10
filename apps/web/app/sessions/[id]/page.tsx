@@ -3,14 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import type { TrainingSessionDTO, VideoDTO } from "@cornerman/shared-types";
-import { Button, Module } from "@cornerman/ui";
+import type {
+  PoseMetrics,
+  TrainingSessionDTO,
+  VideoDTO
+} from "@cornerman/shared-types";
+import { Button, Module, StatBox, StatStrip } from "@cornerman/ui";
 import { ApiError } from "@cornerman/api-client";
 import { AppFrame } from "../../components/app-frame";
 import { api } from "../../lib/api";
 import { VideosPanel } from "./videos-panel";
 import { ReportPanel } from "./report-panel";
 import { SessionHeader } from "./session-header";
+import type { EvidenceRef, LocateRequest, SeekRequest } from "./types";
 
 function SaveState() {
   return (
@@ -21,7 +26,77 @@ function SaveState() {
   );
 }
 
-export type SeekRequest = { videoId: string; ms: number; nonce: number };
+export type { SeekRequest } from "./types";
+
+const PUNCH_KIND_LABEL: Record<string, string> = {
+  straight: "直拳",
+  hook_swing: "勾/摆拳",
+  uppercut: "上勾拳"
+};
+
+/** 多视频时聚合姿态指标：次数求和，比率取平均 */
+function aggregatePoseMetrics(videos: VideoDTO[]): PoseMetrics | null {
+  const list = videos
+    .filter((v) => v.status === "ready" && v.poseMetrics)
+    .map((v) => v.poseMetrics!);
+  if (list.length === 0) return null;
+  if (list.length === 1) return list[0];
+
+  const avg = (key: keyof PoseMetrics): number | undefined => {
+    const vals = list
+      .map((m) => m[key])
+      .filter((v): v is number => typeof v === "number");
+    return vals.length
+      ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 1000) / 1000
+      : undefined;
+  };
+  const punchTypes: Record<string, number> = {};
+  for (const m of list) {
+    for (const [k, n] of Object.entries(m.punchTypes ?? {})) {
+      punchTypes[k] = (punchTypes[k] ?? 0) + n;
+    }
+  }
+  return {
+    punchCount: list.reduce((a, m) => a + (m.punchCount ?? 0), 0),
+    punchesPerMin: avg("punchesPerMin"),
+    guardUpRatio: avg("guardUpRatio"),
+    highActivityRatio: avg("highActivityRatio"),
+    detectRate: avg("detectRate"),
+    punchTypes: Object.keys(punchTypes).length ? punchTypes : undefined
+  };
+}
+
+function PoseMetricsModule({ videos }: { videos: VideoDTO[] }) {
+  const m = aggregatePoseMetrics(videos);
+  if (!m) return null;
+  const pct = (v?: number) =>
+    typeof v === "number" ? `${(v * 100).toFixed(0)}%` : "—";
+  const punchTypesText = Object.entries(m.punchTypes ?? {})
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, n]) => `${PUNCH_KIND_LABEL[k] ?? k} ${n} 次`)
+    .join("、");
+  return (
+    <Module head="动作指标" meta="姿态分析实测">
+      <StatStrip>
+        <StatBox value={m.punchCount ?? "—"} label="出拳次数" tone="blue" />
+        <StatBox
+          value={m.punchesPerMin ?? "—"}
+          label="出拳频率（次/分钟）"
+        />
+        <StatBox
+          value={pct(m.guardUpRatio)}
+          label="护手到位率"
+          tone={typeof m.guardUpRatio === "number" && m.guardUpRatio >= 0.5 ? "green" : "default"}
+        />
+        <StatBox value={pct(m.highActivityRatio)} label="高强度活动占比" />
+      </StatStrip>
+      <p className="mt-2.5 text-[11.5px] text-ink-3">
+        {punchTypesText ? `拳型分布：${punchTypesText} · ` : ""}
+        姿态检出率 {pct(m.detectRate)}（指标由视频姿态估计测量，仅供参考）
+      </p>
+    </Module>
+  );
+}
 
 export default function SessionDetailPage() {
   const params = useParams<{ id: string }>();
@@ -30,7 +105,8 @@ export default function SessionDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [seek, setSeek] = useState<SeekRequest | null>(null);
-  const [evidenceIds, setEvidenceIds] = useState<string[]>([]);
+  const [evidence, setEvidence] = useState<EvidenceRef[]>([]);
+  const [locate, setLocate] = useState<LocateRequest | null>(null);
 
   useEffect(() => {
     if (!params?.id) return;
@@ -47,6 +123,10 @@ export default function SessionDetailPage() {
     setSeek({ videoId, ms, nonce: Date.now() });
   }
 
+  function requestLocate(refKey: string) {
+    setLocate({ refKey, nonce: Date.now() });
+  }
+
   const videosReady = videos.some((v) => v.status === "ready");
 
   const headerExtras = session ? <SaveState /> : undefined;
@@ -56,7 +136,8 @@ export default function SessionDetailPage() {
       sessionId={session.id}
       videosReady={videosReady}
       onSeek={requestSeek}
-      onEvidence={setEvidenceIds}
+      onEvidence={setEvidence}
+      locate={locate}
     />
   ) : undefined;
 
@@ -81,8 +162,11 @@ export default function SessionDetailPage() {
             sessionId={session.id}
             onVideosChange={setVideos}
             seek={seek}
-            evidenceIds={evidenceIds}
+            evidence={evidence}
+            onLocate={requestLocate}
           />
+
+          <PoseMetricsModule videos={videos} />
 
           <Module head="我的补充" meta="文字记录">
             <div className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-revise">

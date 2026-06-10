@@ -1,12 +1,15 @@
 [project]
 name = "cornerman-ai-service"
-version = "0.0.0"
-description = "CornerMan 姿态分析服务（FastAPI）"
-requires-python = ">=3.10"
+version = "0.1.0"
+description = "CornerMan 姿态分析服务（FastAPI + MediaPipe Pose）"
+requires-python = ">=3.10,<3.13"
 dependencies = [
     "fastapi==0.111.1",
     "uvicorn[standard]==0.30.3",
     "pydantic==2.8.2",
+    "mediapipe==0.10.14",
+    "numpy==1.26.4",
+    "opencv-contrib-python==4.10.0.84",
 ]
 
 [tool.pytest.ini_options]

@@ -189,6 +189,8 @@ export interface VideoSegmentDTO {
   endMs: number;
   tags: string[];
   aiConfidence?: number;
+  /** 片段级量化指标（姿态分析产出，可缺省） */
+  metrics?: SegmentMetrics;
 }
 
 /** 视频对外视图：私有对象通过签名 URL 暴露（仅在 ready 时返回） */
@@ -207,6 +209,8 @@ export interface VideoDTO {
   playbackUrl?: string;
   segmentCount: number;
   segments?: VideoSegmentDTO[];
+  /** 姿态分析全局指标（ready 且分析成功时返回） */
+  poseMetrics?: PoseMetrics;
   createdAt: ISODateString;
   updatedAt: ISODateString;
 }
@@ -364,12 +368,87 @@ export interface ReportDraftSegmentInput {
   startMs: number;
   endMs: number;
   tags?: string[];
+  /** 该片段的量化指标（姿态分析按时间窗聚合） */
+  metrics?: SegmentMetrics;
 }
 
 /** 姿态指标（ai-service stub 产出，可缺省） */
+/**
+ * 姿态测量汇总（ai-service 真实分析产出；字段均可选，缺省表示未测量）。
+ * 保留索引签名以兼容附加指标。
+ */
 export interface PoseMetrics {
-  [key: string]: number | string | undefined;
+  /** 出拳次数（腕速峰值检测） */
+  punchCount?: number;
+  /** 每分钟出拳数 */
+  punchesPerMin?: number;
+  /** 护手到位率 0~1（双腕高于肩线时长占比） */
+  guardUpRatio?: number;
+  /** 平均站距 / 肩宽 */
+  stanceWidthRatio?: number;
+  /** 高强度活动时间占比 0~1（出拳串 + 高活动片段） */
+  highActivityRatio?: number;
+  /** 姿态检出率 0~1（采样帧中检到人体的比例，可作可信度参考） */
+  detectRate?: number;
+  /** 分析采样帧数 */
+  analyzedFrames?: number;
+  /** 实际采样帧率 */
+  sampleFps?: number;
+  /** 全视频拳型分布（straight / hook_swing / uppercut → 次数） */
+  punchTypes?: Record<string, number>;
+  /** 全视频躲闪次数（slip/duck） */
+  evadeCount?: number;
+  /** 逐拳事件（时间点 + 拳型），供时间轴拳型轨渲染 */
+  punchEvents?: PunchEventDTO[];
+  [key: string]:
+    | number
+    | string
+    | Record<string, number>
+    | PunchEventDTO[]
+    | undefined;
 }
+
+/** 拳型粗分类（单机位 2D 轨迹判定：直拳 / 勾摆 / 上勾） */
+export type PunchKind = "straight" | "hook_swing" | "uppercut";
+
+/** 逐拳事件（全视频，供时间轴拳型轨渲染） */
+export interface PunchEventDTO {
+  /** 事件时间点（ms） */
+  tMs: number;
+  /** 拳型 */
+  kind: PunchKind;
+  /** 腕速（肩宽/秒） */
+  speed?: number;
+}
+
+/** 片段级量化指标（ai-service 按片段时间窗聚合） */
+export interface SegmentMetrics {
+  /** 片段内出拳次数 */
+  punchCount?: number;
+  /** 平均出拳腕速（肩宽/秒） */
+  avgPunchSpeed?: number;
+  /** 片段内拳型分布 */
+  punchTypes?: Record<string, number>;
+  /** 片段内躲闪次数（slip/duck） */
+  evadeCount?: number;
+  /** 平均活动度（肩宽/秒） */
+  activity?: number;
+  /** 步伐强度（踝部位移密度） */
+  footworkIntensity?: number;
+  /** 护手到位率 0~1 */
+  guardUpRatio?: number;
+  [key: string]: number | Record<string, number> | undefined;
+}
+
+/** ai-service 产出的动作片段主标签 */
+export type ActionSegmentLabel =
+  | "punch_burst"
+  | "evade"
+  | "footwork"
+  | "guard_hold"
+  | "high_activity"
+  | "rest"
+  | "low_activity"; // 兼容存量数据（已被 rest 取代）
 
 /** LLM 起草报告的结构化输入 */
 export interface ReportDraftInput {

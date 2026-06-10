@@ -273,12 +273,135 @@ flowchart LR
 
 ## 10. 数据库要点
 
-- 训练与视频：`training_sessions`、`videos`、`video_segments`（带 `start_ms / end_ms / tags[] / problem_codes[] / user_note / ai_confidence`）
-- 报告版本化：`analysis_reports`（`draft` 只读快照 + `final` 可编辑）+ `report_revisions`（逐条增删改 diff），永不覆盖 AI 原始输出
-- 问题追踪：`problem_threads`（同类问题跨训练串联，含 `status`、`occurrences`、`last_seen_at`、`improved_evidence`）+ 关联 `report_item` / `video_segment`
-- 评分：`scores`（`ai_score / user_score / confidence / dimension`）
-- 趋势聚合：`weekly_metrics` 物化视图，每晚定时刷新
-- 软删除：通用 `deleted_at`，视频物理删除走异步清理任务
+### 10.1 设计要点
+
+- 训练与视频：`TrainingSession`、`Video`、`VideoSegment`（带 `startMs / endMs / tags[] / problemCodes[] / userNote / aiConfidence`）
+- 报告版本化：`AnalysisReport`（`draft` 只读快照 + `final` 可编辑）+ `ReportRevision`（逐条增删改 diff），永不覆盖 AI 原始输出
+- 问题追踪：`ProblemThread`（同类问题跨训练串联，含 `status`、`occurrences`、`lastSeenAt`、`improvedEvidence`）+ 逻辑关联 `report item` / `VideoSegment`
+- 评分：`Score`（`aiScore / userScore / confidence / dimension`，按 `(sessionId, dimension)` 唯一）
+- 趋势聚合：`weekly_metrics` 物化视图，每晚定时刷新（P5 规划，尚未建表）
+- 软删除：通用 `deletedAt`，视频物理删除走异步清理任务
+
+> 落地以 [apps/api/prisma/schema.prisma](../apps/api/prisma/schema.prisma) 为准；当前实现表名即 Prisma 模型名（PascalCase）。
+
+### 10.2 实体关系图
+
+```mermaid
+erDiagram
+  User ||--o{ TrainingSession : "拥有"
+  User ||--o{ ProblemThread : "拥有"
+  TrainingSession ||--o{ Video : "包含"
+  TrainingSession ||--o{ AnalysisReport : "draft+final"
+  TrainingSession ||--o{ Score : "7 维各一行"
+  Video ||--o{ VideoSegment : "切分"
+  AnalysisReport ||--o{ ReportRevision : "逐条修订"
+```
+
+实线为数据库外键（FK）关系。此外还有几处**逻辑引用**（非 FK，跨 JSON / 数组字段），是"证据可追溯"的关键，见 10.4。
+
+### 10.3 表清单与核心字段
+
+主键统一 `id`（cuid）；多数主表带 `createdAt / updatedAt / deletedAt?`，下表略去这些通用列。
+
+#### User（账号）
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| email | String unique | 登录邮箱 |
+| username | String unique | 登录用户名 |
+| displayName | String? | 昵称 |
+| passwordHash | String | bcrypt 哈希 |
+
+#### TrainingSession（训练记录）
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| userId | FK → User | 归属用户 |
+| title | String | 标题 |
+| trainingType | String | `private_lesson / self_training / sparring` |
+| trainedAt | DateTime | 训练日期 |
+| durationMin | Int? | 时长（分钟） |
+| location | String? | 地点 |
+| focus | String? | 本次重点 |
+| userNote | String? | 主观感受 |
+
+#### Video（视频资产）
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| sessionId | FK → TrainingSession | 归属训练 |
+| status | String | `uploading / uploaded / processing / ready / failed` |
+| objectKey | String | 原始对象存储 key |
+| originalFileName / contentType / sizeBytes | - | 上传元信息 |
+| durationMs / width / height | - | ffprobe 探测的视频元信息 |
+| posterObjectKey / playback720Key / playback360Key / framesPrefix | String? | 转码产物 key（封面 / 多码率 / 抽帧前缀） |
+| errorMessage | String? | 处理失败原因 |
+
+#### VideoSegment（候选 / 关键片段）
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| videoId | FK → Video | 归属视频 |
+| startMs / endMs | Int | 片段时间区间 |
+| tags | String[] | 标签 |
+| problemCodes | String[] | 关联问题编码（逻辑串联 ProblemThread） |
+| userNote | String? | 一句话备注 |
+| aiConfidence | Float? | AI 置信度 |
+
+#### AnalysisReport（AI 复盘报告）
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| sessionId | FK → TrainingSession | 归属训练 |
+| status | String | `draft`（AI 只读快照）/ `final`（用户可编辑） |
+| summary | String | 训练摘要 |
+| items | Json | 条目数组（每条含 `key / dimension / title / detail / segmentId / aiConfidence`） |
+| modelVersion / promptVersion | String? | 生成所用模型 / prompt 版本 |
+
+#### ReportRevision（逐条修订流水）
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| reportId | FK → AnalysisReport | 归属 final 报告 |
+| itemKey | String | 逻辑引用 `AnalysisReport.items[].key` |
+| action | String | `accept / edit / delete / add` |
+| aiOriginal | String? | 修订前 AI 原文快照（永不覆盖） |
+| userResult | String? | 用户修订结果 |
+
+#### Score（多维评分）
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| sessionId | FK → TrainingSession | 归属训练 |
+| dimension | String | `stance / guard / footwork / punch_technique / defense / combination / overall` |
+| aiScore / userScore | Float? | AI 分 / 用户修正分 |
+| confidence | Float? | AI 置信度 |
+| rationale | String? | 评分理由 |
+| evidenceSegmentIds | String[] | 逻辑引用支撑该分的 `VideoSegment.id` |
+| **唯一约束** | `@@unique([sessionId, dimension])` | 每训练每维度仅一行（改分走 upsert） |
+
+#### ProblemThread（问题追踪）
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| userId | FK → User | 归属用户 |
+| problemCode | String | 问题编码（与 `VideoSegment.problemCodes` 串联） |
+| title | String | 问题标题 |
+| status | String | `open / improving / improved / recurred` |
+| occurrences | Int | 出现次数 |
+| lastSeenAt | DateTime | 最近出现 |
+| improvedEvidence | String? | 改进证据 |
+
+### 10.4 逻辑引用（证据可追溯，非外键）
+
+以下引用不走数据库外键（指向 JSON 内字段或字符串数组元素），由应用层维护一致性，是"AI 结论 ↔ 视频证据"互链的基础：
+
+| 来源 | 指向 | 用途 |
+| --- | --- | --- |
+| `AnalysisReport.items[].segmentId` | `VideoSegment.id` | 报告条目的"证据片段" chip → 视频跳转 |
+| `Score.evidenceSegmentIds[]` | `VideoSegment.id` | 评分的支撑片段 |
+| `ReportRevision.itemKey` | `AnalysisReport.items[].key` | 把修订挂回具体条目 |
+| `VideoSegment.problemCodes[]` ↔ `ProblemThread.problemCode` | - | 同类问题跨训练串联 |
 
 ## 11. 可观测性与质量
 

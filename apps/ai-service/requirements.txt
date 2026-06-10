@@ -1,7 +1,7 @@
 fastapi==0.111.1
 uvicorn[standard]==0.30.3
 pydantic==2.8.2
-# 姿态分析（后续启用，MVP 先 stub）
-# mediapipe==0.10.14
-# numpy==1.26.4
-# opencv-python-headless==4.10.0.84
+# 姿态分析（MediaPipe Pose，CPU 即可）
+mediapipe==0.10.14
+numpy==1.26.4
+opencv-contrib-python==4.10.0.84

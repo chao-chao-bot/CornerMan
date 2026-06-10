@@ -60,6 +60,7 @@ model Video {
   playback720Key  String?
   playback360Key  String?
   framesPrefix    String?
+  poseMetrics     Json? // ai-service 姿态分析全局指标（出拳数/护手比例等）
   errorMessage    String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -78,6 +79,7 @@ model VideoSegment {
   problemCodes String[]
   userNote     String?
   aiConfidence Float?
+  metrics      Json? // 该片段的量化指标（punchCount / punchTypes / activity 等）
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

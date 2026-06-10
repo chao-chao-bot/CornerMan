@@ -99,6 +99,9 @@ importers:
       '@aws-sdk/client-s3':
         specifier: ^3.1064.0
         version: 3.1064.0
+      '@aws-sdk/s3-request-presigner':
+        specifier: ^3.1064.0
+        version: 3.1064.0
       '@cornerman/ai-prompts':
         specifier: workspace:*
         version: link:../../packages/ai-prompts

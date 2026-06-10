@@ -172,9 +172,11 @@ export class VideosService {
             startMs: s.startMs,
             endMs: s.endMs,
             tags: s.tags,
-            aiConfidence: s.aiConfidence ?? undefined
+            aiConfidence: s.aiConfidence ?? undefined,
+            metrics: (s.metrics ?? undefined) as VideoSegmentDTO["metrics"]
           }))
         : undefined,
+      poseMetrics: (video.poseMetrics ?? undefined) as VideoDTO["poseMetrics"],
       createdAt: video.createdAt.toISOString(),
       updatedAt: video.updatedAt.toISOString()
     };

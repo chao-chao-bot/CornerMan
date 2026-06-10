@@ -7,6 +7,7 @@ import {
   PutObjectCommand,
   S3Client
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const bucket = process.env.OSS_BUCKET ?? "cornerman";
 
@@ -31,6 +32,18 @@ export async function downloadObject(
     throw new Error(`对象为空：${objectKey}`);
   }
   await pipeline(res.Body as Readable, createWriteStream(destPath));
+}
+
+/** 生成对象的签名 GET URL（供 ai-service 拉取视频） */
+export function presignGetUrl(
+  objectKey: string,
+  expiresInSec = 3600
+): Promise<string> {
+  return getSignedUrl(
+    client,
+    new GetObjectCommand({ Bucket: bucket, Key: objectKey }),
+    { expiresIn: expiresInSec }
+  );
 }
 
 export async function uploadFile(

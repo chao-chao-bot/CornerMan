@@ -4,12 +4,13 @@
  * 消费 BullMQ `video.process`：
  *   1. 从 MinIO 拉原始视频
  *   2. ffmpeg 转码 720p/360p、首帧封面、每 1s 抽帧
- *   3. 场景切点粗切片，写入候选 VideoSegment
- *   4. 写回 videos.ready，入队 `ai.analyze`（P3 消费）
+ *   3. ai-service 姿态分析 → 动作驱动切片（失败回退场景切点/固定窗口）
+ *   4. 写回 videos.ready，入队 `ai.analyze`（带姿态指标，P3 消费）
  */
 import "dotenv/config";
 import { Queue, Worker } from "bullmq";
 import { PrismaClient } from "@prisma/client";
+import type { PoseMetrics } from "@cornerman/shared-types";
 import { processVideo } from "./process-video.js";
 import { analyzeSession } from "./analyze.js";
 
@@ -45,11 +46,20 @@ worker.on("failed", async (job, err) => {
   }
 });
 
-const aiWorker = new Worker<{ videoId: string; sessionId: string }>(
+const aiWorker = new Worker<{
+  videoId: string;
+  sessionId: string;
+  poseMetrics?: PoseMetrics;
+}>(
   "ai.analyze",
   async (job) => {
     console.log(`[ai-worker] 开始分析 session ${job.data.sessionId}`);
-    await analyzeSession(prisma, job.data.videoId, job.data.sessionId);
+    await analyzeSession(
+      prisma,
+      job.data.videoId,
+      job.data.sessionId,
+      job.data.poseMetrics
+    );
   },
   { connection, concurrency: 1 }
 );

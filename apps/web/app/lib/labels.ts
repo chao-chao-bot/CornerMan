@@ -39,3 +39,27 @@ export const SCORE_DIMENSION_ORDER: ScoreDimension[] = [
   "combination",
   "overall"
 ];
+
+/** 动作片段标签 → 中文（主标签 + 副标签） */
+export const SEGMENT_TAG_LABEL: Record<string, string> = {
+  punch_burst: "出拳串",
+  evade: "躲闪",
+  footwork: "步伐移动",
+  guard_hold: "防守保持",
+  high_activity: "原地高强度",
+  rest: "休息",
+  low_activity: "低强度",
+  straight: "直拳为主",
+  hook_swing: "勾/摆拳为主",
+  uppercut: "上勾拳为主",
+  combo: "组合拳",
+  moving: "移动中出拳",
+  with_evade: "含躲闪",
+  candidate: "候选片段"
+};
+
+export const PUNCH_KIND_LABEL: Record<string, string> = {
+  straight: "直拳",
+  hook_swing: "勾/摆拳",
+  uppercut: "上勾拳"
+};

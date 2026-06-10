@@ -16,6 +16,7 @@ import {
   SCORE_DIMENSION_ORDER
 } from "../../lib/labels";
 import { ScoreBoard } from "./score-board";
+import type { EvidenceRef, LocateRequest } from "./types";
 
 type SegmentInfo = { videoId: string; startMs: number; endMs: number };
 
@@ -57,18 +58,22 @@ export function ReportPanel({
   sessionId,
   videosReady,
   onSeek,
-  onEvidence
+  onEvidence,
+  locate
 }: {
   sessionId: string;
   videosReady: boolean;
   onSeek?: (videoId: string, ms: number) => void;
-  onEvidence?: (segmentIds: string[]) => void;
+  onEvidence?: (refs: EvidenceRef[]) => void;
+  /** 视频侧时间线点击证据片段 → 定位到对应条目/评分 */
+  locate?: LocateRequest | null;
 }) {
   const [report, setReport] = useState<SessionReportDTO | null>(null);
   const [segMap, setSegMap] = useState<Record<string, SegmentInfo>>({});
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [flashKey, setFlashKey] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -105,6 +110,13 @@ export function ReportPanel({
     void loadSegments();
   }, [load, loadSegments]);
 
+  // 视频就绪或报告草稿出现时重拉片段映射，避免证据片段 chip 需手动刷新才出现
+  useEffect(() => {
+    if (videosReady || report?.draft || report?.final) {
+      void loadSegments();
+    }
+  }, [videosReady, report?.draft?.id, report?.final?.id, loadSegments]);
+
   useEffect(() => {
     const hasDraft = Boolean(report?.draft);
     const needPoll = videosReady && !hasDraft;
@@ -131,19 +143,41 @@ export function ReportPanel({
     (report?.draft?.items ?? []).map((it) => [it.key, it])
   );
 
-  // 汇总报告引用过的证据片段，上抛给主区时间线做高亮
+  // 汇总复盘条目引用的证据片段（带反向定位键），上抛给主区时间线。
+  // 评分证据（Score.evidenceSegmentIds）噪音大，不进证据轨。
   useEffect(() => {
     if (!onEvidence) return;
-    const ids = new Set<string>();
-    const items = [
-      ...(report?.draft?.items ?? []),
-      ...(report?.final?.items ?? [])
-    ];
-    for (const it of items) if (it.segmentId) ids.add(it.segmentId);
-    for (const sc of report?.scores ?? [])
-      for (const id of sc.evidenceSegmentIds ?? []) ids.add(id);
-    onEvidence([...ids]);
+    const refs: EvidenceRef[] = [];
+    const seen = new Set<string>();
+    const activeReport = report?.final ?? report?.draft;
+    for (const it of activeReport?.items ?? []) {
+      if (!it.segmentId) continue;
+      const dedup = `${it.segmentId}|${it.key}`;
+      if (seen.has(dedup)) continue;
+      seen.add(dedup);
+      refs.push({
+        segmentId: it.segmentId,
+        kind: "item",
+        refKey: it.key,
+        label: `${SCORE_DIMENSION_LABEL[it.dimension]}·${it.title}`
+      });
+    }
+    onEvidence(refs);
   }, [report, onEvidence]);
+
+  // 时间线点击证据片段 → 滚动定位并闪烁高亮对应条目/评分区
+  useEffect(() => {
+    if (!locate) return;
+    const elId = locate.refKey.startsWith("score-")
+      ? "report-scores"
+      : `report-item-${locate.refKey}`;
+    document
+      .getElementById(elId)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashKey(locate.refKey);
+    const timer = setTimeout(() => setFlashKey(null), 2200);
+    return () => clearTimeout(timer);
+  }, [locate]);
 
   async function runRevision(
     fn: () => Promise<SessionReportDTO>
@@ -219,6 +253,7 @@ export function ReportPanel({
             seg={item.segmentId ? segMap[item.segmentId] : undefined}
             aiOriginal={draftItemMap.get(item.key)}
             busy={busy}
+            flash={flashKey === item.key}
             onSeek={onSeek}
             onAccept={() =>
               runRevision(() =>
@@ -270,6 +305,14 @@ export function ReportPanel({
 
       {/* 技术评分 */}
       <PanelTitle>技术评分</PanelTitle>
+      <div
+        id="report-scores"
+        className={
+          flashKey?.startsWith("score-")
+            ? "rounded ring-2 ring-brand/50 transition-shadow"
+            : "transition-shadow"
+        }
+      >
       <ScoreBoard
         sessionId={sessionId}
         scores={report?.scores ?? []}
@@ -286,6 +329,7 @@ export function ReportPanel({
           )
         }
       />
+      </div>
 
       {/* 问题追踪（占位） */}
       <PanelTitle>问题追踪</PanelTitle>
@@ -301,6 +345,7 @@ function ReportItemCard({
   seg,
   aiOriginal,
   busy,
+  flash,
   onAccept,
   onEdit,
   onDelete,
@@ -310,6 +355,8 @@ function ReportItemCard({
   seg?: SegmentInfo;
   aiOriginal?: AnalysisReportItem;
   busy: boolean;
+  /** 时间线证据定位时短暂高亮 */
+  flash?: boolean;
   onAccept: () => void;
   onEdit: (title: string, detail: string) => void;
   onDelete: () => void;
@@ -326,7 +373,12 @@ function ReportItemCard({
   const segLabel = fmtSeg(seg);
 
   return (
-    <div className="mb-2.5 overflow-hidden rounded border border-line bg-surface">
+    <div
+      id={`report-item-${item.key}`}
+      className={`mb-2.5 overflow-hidden rounded border bg-surface transition-shadow ${
+        flash ? "border-brand ring-2 ring-brand/50" : "border-line"
+      }`}
+    >
       <div className="flex items-center justify-between border-b border-line bg-surface-2 px-3 py-2">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-2">
           {SCORE_DIMENSION_LABEL[item.dimension]}
