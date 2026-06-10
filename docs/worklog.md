@@ -3,6 +3,58 @@
 记录每次大型修改。新记录追加在最上方（倒序）。
 每条字段：日期 / 范围 / 改动摘要 / 影响文件 / 备注。
 
+## 2026-06-10 · 修复进度条色块点击不跳转
+- 范围：web
+- 改动摘要：
+  - **根因**（[videos-panel.tsx](apps/web/app/sessions/[id]/videos-panel.tsx)）：`onPanStart` 在 `zoom>1` 时立即对 `scrollRef` 调 `setPointerCapture`，指针被父容器捕获后浏览器把合成的 `click` 重定向到容器，色块 `<button>` 的 `onClick`（`seekTo`）不触发 → 放大后点击片段播放头不动（zoom=1 不捕获故正常）
+  - **修复**：把 `setPointerCapture` 从 `onPanStart` 延迟到 `onPanMove`，仅当位移 `>5px`（判定拖动平移）才捕获并标记 `captured`；纯点击不捕获，`click` 正常落到色块按钮上;`onPanEnd` 按需 `releasePointerCapture`，保留「moved→draggedRef」抑制随后背景 seek。`panRef` 增 `pointerId`/`captured` 字段
+- 影响文件：`apps/web/app/sessions/[id]/videos-panel.tsx`
+- 验证：turbo typecheck 9/9 全绿；放大点击色块/拖动平移交互手测由用户进行
+
+## 2026-06-10 · 修复重新分析卡死与时间线状态错乱
+- 范围：api / web
+- 改动摘要：
+  - **根因·BullMQ 去重**（[video-queue.service.ts](apps/api/src/queue/video-queue.service.ts)）：`enqueueProcess` 原用固定 `jobId: videoId` + `removeOnComplete:100`，重新分析再次入队时因同名 completed 任务仍在历史中被 BullMQ 静默忽略 → worker 不跑、视频永久卡 processing。去掉固定 jobId 改为每次自动生成唯一 jobId（`completeUpload` 有 `status==="uploading"` 状态保护，不会重复处理）
+  - **清旧产物保证状态一致**（[training-sessions.service.ts](apps/api/src/training-sessions/training-sessions.service.ts) `reanalyze` 事务）：追加 `videoSegment.deleteMany` 清动作片段 + `video.updateMany(...poseMetrics: Prisma.JsonNull)` 清姿态指标（含 punchEvents）；处理中三轨一致为空（动作 0 / 拳型 0 / 证据 0），worker 跑完重新写回，杜绝「动作 0 但拳型 81」错乱
+  - **卡死可恢复 + 处理中提示**（[videos-panel.tsx](apps/web/app/sessions/[id]/videos-panel.tsx)）：`canReanalyze` 纳入 `processing`（否则卡住视频按钮被隐藏无法自救）；动作/拳型轨空态在 `status==="processing"` 时显示「分析中…」占位
+- 影响文件：`apps/api/src/queue/video-queue.service.ts`、`apps/api/src/training-sessions/training-sessions.service.ts`、`apps/web/app/sessions/[id]/videos-panel.tsx`
+- 验证：turbo typecheck 9/9 全绿；重新分析手测由用户进行
+- 备注：旧卡住任务需对其 session 重新点「重新分析」触发新入队恢复
+
+## 2026-06-10 · 时间线缩放/平移 + 图例显隐 + 评分组件优化
+- 范围：web
+- 改动摘要：
+  - **时间线监控式缩放**（[videos-panel.tsx](apps/web/app/sessions/[id]/videos-panel.tsx) `VideoStage`）：外层 scroll 容器 + 内层 `width=zoom*100%` 缩放带（片段/拳点/播放头仍按时长百分比定位，零改动）；滚轮以光标处时间为锚点缩放（非 passive wheel 手动绑定，1–12x）；放大后按住空白横向拖动平移（位移<5px 视为点击 seek）；底部「− / Nx / +」控件 + 复位 + 「滚轮缩放」提示；播放头出屏自动居中滚动；片段最小宽度改 `minWidth:4px` 精确反映时长；加时间刻度线
+  - **图例点击显隐（echarts 式）**：`hiddenKeys` 状态，拳型轨/动作轨图例改按钮，点击切换对应色点/色块显隐，隐藏态图例置灰 + 色块空心描边；切换轨道时清空
+  - **技术评分优化**（[score-board.tsx](apps/web/app/sessions/[id]/score-board.tsx)）：拖动松手即保存，成功后行内绿色「✓ 已保存」1.5s 淡出 + 常驻提示「松手即自动保存」；整体紧凑化（雷达 260×220→200×168、间距/字号下调、综合分 30→22px、置信度并入维度行）；**AI 分从难懂的虚线填充层改为评分条上的竖向刻度标记**（蓝条=我的分、灰标=AI 分），图例两行精简为一行
+- 影响文件：`apps/web/app/sessions/[id]/{videos-panel,score-board}.tsx`
+- 验证：turbo typecheck 9/9 全绿；交互手测由用户进行
+- 备注：缩放锚点用 `scrollLeft` + requestAnimationFrame 在 zoom 重渲染后校正，保证光标下时刻不动
+
+## 2026-06-10 · 复盘操作反馈修复
+- 范围：web
+- 改动摘要：
+  - **接入 antd message**：[antd-provider.tsx](apps/web/app/components/antd-provider.tsx) `ConfigProvider` 内加 `<App component={false}>`，组件用 `App.useApp().message` 弹提示
+  - **去掉「重新归档」**：已复盘后状态条变绿色「已复盘 · 时间」徽标、按钮隐藏（原按钮重复归档无可见变化，造成"点了没反应"困惑）
+  - **完成复盘反馈**：按钮归档中显示白色转圈 +「归档中…」文案禁用；成功 toast「复盘已归档」，状态条即时变绿
+  - **采纳防重复**：用接口已返回但前端未用的 `report.revisions` 计算 `acceptedKeys`（action=accept），已采纳条目按钮变绿色「✓ 已采纳」禁用态；成功 toast「已采纳」
+  - **删除加确认**：删除按钮包 antd `Popconfirm`（提示 AI 原文保留在修订记录），确认后才执行；修改/新增也加成功 toast
+- 影响文件：`apps/web/app/components/antd-provider.tsx`、`apps/web/app/sessions/[id]/report-panel.tsx`
+- 验证：turbo typecheck 9/9 全绿；交互手测由用户进行
+- 备注：`acceptedKeys` 来自 final 报告的修订记录，刷新后状态保持
+
+## 2026-06-10 · 复盘流转重设计 + 重新分析 + 列表筛选 + 全站 Spin
+- 范围：api / api-client / shared-types / web
+- 改动摘要：
+  - **显式「完成复盘」取代隐式定稿**：`TrainingSession` 增 `reviewedAt`（手写迁移 `20260610180000_session_reviewed_at`）；新端点 `POST /training-sessions/:id/report/complete`（确保 final 存在 + 写 reviewedAt）；列表状态聚合改为 **reviewedAt→final(已复盘) / 有任何报告→draft(待复盘) / 否则 pending(分析中)**，不再被「修订自动产生的 final 工作副本」误判为已定稿
+  - **重新分析链路**：新端点 `POST /training-sessions/:id/reanalyze`——软删旧报告（draft+final，因 worker 会 deleteMany 重建片段、旧证据链接失效，故整体作废）、清 `reviewedAt`、所有视频置 processing 重新入队 `video.process`；worker 无改动（已可重入），新分析生成全新草稿
+  - **前端流转**：报告面板顶部加「完成复盘」按钮 / 「已复盘·时间」徽标；视频面板头部加「重新分析」+ Popconfirm；状态标签 `已定稿→已复盘`；删除误导文案「首次修改或改分将自动定稿」改为「采纳/修改保存为我的修订，AI 原文始终保留」；重新分析后用 reportNonce 强制报告面板清空重载，避免展示作废报告
+  - **训练列表筛选**（前端内存过滤）：训练类型(SegControl) + 状态/综合分档位(Select) + 训练日期(RangePicker)；空结果区分「无训练」与「筛选无结果(可清除)」；Module meta 显示 `命中/总数`
+  - **全站 Spin**：列表首屏、报告首屏、AI 草稿轮询期、逐条修订提交(per-item)、视频列表首屏、改分提交——统一 antd `Spin`
+- 影响文件：`apps/api/prisma/{schema.prisma,migrations/20260610180000_session_reviewed_at}`、`apps/api/src/{training-sessions/*,reports/*}`、`packages/{shared-types,api-client}/src/index.ts`、`apps/web/app/sessions/{page.tsx,[id]/{page,report-panel,videos-panel,score-board}.tsx}`
+- 验证：e2e 鉴权实测 pending→(插入草稿)draft→complete→final(reviewedAt 落库)；reanalyze 对无视频 session 正确 404；complete 保留 draft 同时建 final；turbo typecheck 9/9 全绿
+- 备注：reanalyze 偏离原计划「保留 final」——因 `process-video` deleteMany 重建片段产生新 segmentId，旧 final 的证据链接必失效，保留只会展示错乱，故旧报告整体作废由新分析重建
+
 ## 2026-06-10 · 时间轴拳型轨 + 证据 chip 即时刷新修复
 - 范围：ai-service / video-worker / packages / web / 文档
 - 改动摘要：

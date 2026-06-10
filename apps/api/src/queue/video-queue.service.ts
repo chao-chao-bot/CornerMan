@@ -35,11 +35,12 @@ export class VideoQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   async enqueueProcess(videoId: string): Promise<void> {
+    // 不固定 jobId：固定 jobId + removeOnComplete 会让「重新分析」再次入队时
+    // 因同名 completed 任务仍在而被 BullMQ 静默忽略，导致永远卡 processing。
     await this.queue.add(
       "process",
       { videoId },
       {
-        jobId: videoId,
         attempts: 3,
         backoff: { type: "exponential", delay: 5000 },
         removeOnComplete: 100,

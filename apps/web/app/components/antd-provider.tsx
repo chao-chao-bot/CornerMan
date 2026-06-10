@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
-import { ConfigProvider, theme } from "antd";
+import { App, ConfigProvider, theme } from "antd";
 import zhCN from "antd/locale/zh_CN";
 
 /**
@@ -37,7 +37,8 @@ export function AntdProvider({ children }: { children: ReactNode }) {
           algorithm: theme.defaultAlgorithm
         }}
       >
-        {children}
+        {/* antd App 提供 message/notification 上下文（含主题令牌） */}
+        <App component={false}>{children}</App>
       </ConfigProvider>
     </AntdRegistry>
   );

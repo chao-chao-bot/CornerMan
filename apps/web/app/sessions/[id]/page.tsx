@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import type {
@@ -107,8 +107,10 @@ export default function SessionDetailPage() {
   const [seek, setSeek] = useState<SeekRequest | null>(null);
   const [evidence, setEvidence] = useState<EvidenceRef[]>([]);
   const [locate, setLocate] = useState<LocateRequest | null>(null);
+  // 重新分析后用 nonce 强制报告面板重载，避免展示旧报告
+  const [reportNonce, setReportNonce] = useState(0);
 
-  useEffect(() => {
+  const reloadSession = useCallback(() => {
     if (!params?.id) return;
     api
       .getSession(params.id)
@@ -119,12 +121,21 @@ export default function SessionDetailPage() {
       .finally(() => setLoading(false));
   }, [params?.id]);
 
+  useEffect(() => {
+    reloadSession();
+  }, [reloadSession]);
+
   function requestSeek(videoId: string, ms: number) {
     setSeek({ videoId, ms, nonce: Date.now() });
   }
 
   function requestLocate(refKey: string) {
     setLocate({ refKey, nonce: Date.now() });
+  }
+
+  function handleReanalyzed() {
+    setReportNonce((n) => n + 1);
+    reloadSession();
   }
 
   const videosReady = videos.some((v) => v.status === "ready");
@@ -135,8 +146,11 @@ export default function SessionDetailPage() {
     <ReportPanel
       sessionId={session.id}
       videosReady={videosReady}
+      reviewedAt={session.reviewedAt}
+      reloadNonce={reportNonce}
       onSeek={requestSeek}
       onEvidence={setEvidence}
+      onCompleted={reloadSession}
       locate={locate}
     />
   ) : undefined;
@@ -161,6 +175,7 @@ export default function SessionDetailPage() {
           <VideosPanel
             sessionId={session.id}
             onVideosChange={setVideos}
+            onReanalyzed={handleReanalyzed}
             seek={seek}
             evidence={evidence}
             onLocate={requestLocate}

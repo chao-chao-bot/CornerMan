@@ -42,6 +42,14 @@ export class TrainingSessionsController {
     return this.sessions.findOne(user.userId, id);
   }
 
+  @Post(":id/reanalyze")
+  reanalyze(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string
+  ): Promise<{ id: string; videoCount: number }> {
+    return this.sessions.reanalyze(user.userId, id);
+  }
+
   @Delete(":id")
   remove(
     @CurrentUser() user: AuthUser,

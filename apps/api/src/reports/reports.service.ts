@@ -77,6 +77,16 @@ export class ReportsService {
     });
   }
 
+  /** 完成复盘：确保 final 存在并标记 session.reviewedAt（归档到列表「已复盘」） */
+  async complete(userId: string, sessionId: string): Promise<AnalysisReport> {
+    const final = await this.finalize(userId, sessionId);
+    await this.prisma.trainingSession.update({
+      where: { id: sessionId },
+      data: { reviewedAt: new Date() }
+    });
+    return final;
+  }
+
   async assertSessionOwner(userId: string, sessionId: string): Promise<void> {
     const session = await this.prisma.trainingSession.findFirst({
       where: { id: sessionId, deletedAt: null },

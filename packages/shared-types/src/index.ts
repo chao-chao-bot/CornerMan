@@ -109,11 +109,18 @@ export interface TrainingSessionDTO {
   location?: string;
   focus?: string;
   userNote?: string;
+  /** 复盘归档时间；有值表示用户已点「完成复盘」 */
+  reviewedAt?: ISODateString;
   createdAt: ISODateString;
   updatedAt: ISODateString;
 }
 
-/** 列表页报告状态：尚无报告（视频处理中/待上传）/ AI 草稿待复盘 / 用户已定稿 */
+/**
+ * 列表页报告状态：
+ * - pending：尚无 AI 报告（视频处理中/分析中）
+ * - draft：已有 AI 草稿、用户尚未完成复盘（待复盘）
+ * - final：用户已点「完成复盘」归档（reviewedAt 有值）
+ */
 export type SessionReportStatus = "pending" | "draft" | "final";
 
 /** 训练列表项视图（含报告状态与综合分聚合） */

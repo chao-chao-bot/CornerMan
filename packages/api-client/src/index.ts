@@ -115,6 +115,11 @@ export function createApiClient(options: ApiClientOptions) {
       request<{ id: string }>(`/training-sessions/${id}`, {
         method: "DELETE"
       }),
+    reanalyzeSession: (id: string) =>
+      request<{ id: string; videoCount: number }>(
+        `/training-sessions/${id}/reanalyze`,
+        { method: "POST" }
+      ),
     // ---- videos ----
     initVideoUpload: (sessionId: string, input: InitVideoUploadInput) =>
       request<InitVideoUploadResponse>(
@@ -133,6 +138,10 @@ export function createApiClient(options: ApiClientOptions) {
       request<SessionReportDTO>(`/training-sessions/${sessionId}/report`),
     finalizeReport: (sessionId: string) =>
       request<ReportDTO>(`/training-sessions/${sessionId}/report/finalize`, {
+        method: "POST"
+      }),
+    completeReport: (sessionId: string) =>
+      request<ReportDTO>(`/training-sessions/${sessionId}/report/complete`, {
         method: "POST"
       }),
     createRevision: (reportId: string, input: CreateRevisionInput) =>

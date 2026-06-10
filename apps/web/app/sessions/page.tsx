@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { DatePicker, Select, Spin } from "antd";
+import type { Dayjs } from "dayjs";
 import type {
   SessionListItemDTO,
   SessionReportStatus,
@@ -25,12 +27,38 @@ import { api } from "../lib/api";
 import { TRAINING_TYPE_LABEL, TRAINING_TYPE_OPTIONS } from "../lib/labels";
 
 type Filter = "all" | TrainingType;
+type StatusFilter = "all" | SessionReportStatus;
+type ScoreFilter = "all" | "high" | "mid" | "low" | "none";
+
+const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "全部状态" },
+  { value: "pending", label: "分析中" },
+  { value: "draft", label: "待复盘" },
+  { value: "final", label: "已复盘" }
+];
+
+const SCORE_FILTER_OPTIONS: { value: ScoreFilter; label: string }[] = [
+  { value: "all", label: "全部综合分" },
+  { value: "high", label: "8 分以上" },
+  { value: "mid", label: "6 - 8 分" },
+  { value: "low", label: "6 分以下" },
+  { value: "none", label: "未评分" }
+];
+
+function matchScore(score: number | undefined, f: ScoreFilter): boolean {
+  if (f === "all") return true;
+  if (f === "none") return score == null;
+  if (score == null) return false;
+  if (f === "high") return score >= 8;
+  if (f === "mid") return score >= 6 && score < 8;
+  return score < 6; // low
+}
 
 const STATUS_META: Record<
   SessionReportStatus,
   { label: string; tone: BadgeTone }
 > = {
-  final: { label: "已定稿", tone: "improved" },
+  final: { label: "已复盘", tone: "improved" },
   draft: { label: "待复盘", tone: "new" },
   pending: { label: "分析中", tone: "blue" }
 };
@@ -66,9 +94,27 @@ export default function SessionsPage() {
   const router = useRouter();
   const [sessions, setSessions] = useState<SessionListItemDTO[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [scoreFilter, setScoreFilter] = useState<ScoreFilter>("all");
+  const [dateRange, setDateRange] = useState<
+    [Dayjs | null, Dayjs | null] | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const hasActiveFilter =
+    filter !== "all" ||
+    statusFilter !== "all" ||
+    scoreFilter !== "all" ||
+    Boolean(dateRange?.[0] || dateRange?.[1]);
+
+  function clearFilters() {
+    setFilter("all");
+    setStatusFilter("all");
+    setScoreFilter("all");
+    setDateRange(null);
+  }
 
   useEffect(() => {
     api
@@ -92,13 +138,22 @@ export default function SessionsPage() {
     return { total, totalMin, latestScore, reportCount, streak };
   }, [sessions]);
 
-  const filtered = useMemo(
-    () =>
-      filter === "all"
-        ? sessions
-        : sessions.filter((s) => s.trainingType === filter),
-    [sessions, filter]
-  );
+  const filtered = useMemo(() => {
+    const from = dateRange?.[0]?.startOf("day").valueOf();
+    const to = dateRange?.[1]?.endOf("day").valueOf();
+    return sessions.filter((s) => {
+      if (filter !== "all" && s.trainingType !== filter) return false;
+      if (statusFilter !== "all" && s.reportStatus !== statusFilter)
+        return false;
+      if (!matchScore(s.overallScore, scoreFilter)) return false;
+      if (from != null || to != null) {
+        const t = new Date(s.trainedAt).getTime();
+        if (from != null && t < from) return false;
+        if (to != null && t > to) return false;
+      }
+      return true;
+    });
+  }, [sessions, filter, statusFilter, scoreFilter, dateRange]);
 
   async function onDelete(e: React.MouseEvent, s: SessionListItemDTO) {
     e.preventDefault();
@@ -156,7 +211,11 @@ export default function SessionsPage() {
         <StatBox value={stats.streak} label="连续周数" />
       </StatStrip>
 
-      {loading && <p className="text-ink-3">加载中…</p>}
+      {loading && (
+        <div className="flex justify-center py-16">
+          <Spin />
+        </div>
+      )}
       {error && (
         <div className="mb-3 rounded-sm border border-risk-line bg-risk-soft px-3 py-2 text-[13px] text-risk">
           {error}
@@ -164,7 +223,43 @@ export default function SessionsPage() {
       )}
 
       {!loading && (
-        <Module head="全部训练" meta="点击行进入报告" noBodyPadding>
+        <>
+          <div className="mb-3 flex flex-wrap items-center gap-2.5">
+            <Select<StatusFilter>
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={STATUS_FILTER_OPTIONS}
+              style={{ width: 130 }}
+            />
+            <Select<ScoreFilter>
+              value={scoreFilter}
+              onChange={setScoreFilter}
+              options={SCORE_FILTER_OPTIONS}
+              style={{ width: 140 }}
+            />
+            <DatePicker.RangePicker
+              value={dateRange ?? undefined}
+              onChange={(v) =>
+                setDateRange(v as [Dayjs | null, Dayjs | null] | null)
+              }
+              placeholder={["开始日期", "结束日期"]}
+            />
+            {hasActiveFilter && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="text-[12.5px] text-ink-3 hover:text-brand"
+              >
+                清除筛选
+              </button>
+            )}
+          </div>
+
+          <Module
+            head="全部训练"
+            meta={`${filtered.length} / ${sessions.length} 条`}
+            noBodyPadding
+          >
           {filtered.length === 0 ? (
             <div className="px-4 py-10 text-center text-[13.5px] text-ink-2">
               {sessions.length === 0 ? (
@@ -176,7 +271,16 @@ export default function SessionsPage() {
                   。
                 </>
               ) : (
-                "该类型下暂无训练。"
+                <>
+                  没有符合筛选条件的训练。
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="ml-1 text-brand hover:underline"
+                  >
+                    清除筛选
+                  </button>
+                </>
               )}
             </div>
           ) : (
@@ -259,7 +363,8 @@ export default function SessionsPage() {
               </tbody>
             </Table>
           )}
-        </Module>
+          </Module>
+        </>
       )}
     </AppFrame>
   );

@@ -25,4 +25,13 @@ export class ReportsController {
     const report = await this.reports.finalize(user.userId, sessionId);
     return this.reports.toReportDTO(report);
   }
+
+  @Post("training-sessions/:sessionId/report/complete")
+  async complete(
+    @CurrentUser() user: AuthUser,
+    @Param("sessionId") sessionId: string
+  ): Promise<ReportDTO> {
+    const report = await this.reports.complete(user.userId, sessionId);
+    return this.reports.toReportDTO(report);
+  }
 }

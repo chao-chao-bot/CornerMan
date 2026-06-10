@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Select } from "antd";
+import { App, Popconfirm, Select, Spin } from "antd";
 import type {
   AnalysisReportItem,
   ReportDTO,
@@ -23,6 +23,11 @@ type SegmentInfo = { videoId: string; startMs: number; endMs: number };
 function fmtSeg(seg?: SegmentInfo): string | null {
   if (!seg) return null;
   return `${(seg.startMs / 1000).toFixed(1)}–${(seg.endMs / 1000).toFixed(1)}s`;
+}
+
+function fmtReviewedAt(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 function PanelTitle({
@@ -57,24 +62,43 @@ function SourceChip({ mine }: { mine?: boolean }) {
 export function ReportPanel({
   sessionId,
   videosReady,
+  reviewedAt,
+  reloadNonce,
   onSeek,
   onEvidence,
+  onCompleted,
   locate
 }: {
   sessionId: string;
   videosReady: boolean;
+  /** session.reviewedAt：有值表示已完成复盘 */
+  reviewedAt?: string;
+  /** 外部 bump 时强制重载报告（重新分析后清掉旧报告） */
+  reloadNonce?: number;
   onSeek?: (videoId: string, ms: number) => void;
   onEvidence?: (refs: EvidenceRef[]) => void;
+  /** 完成复盘后通知父级刷新 session（更新 reviewedAt） */
+  onCompleted?: () => void;
   /** 视频侧时间线点击证据片段 → 定位到对应条目/评分 */
   locate?: LocateRequest | null;
 }) {
+  const { message } = App.useApp();
   const [report, setReport] = useState<SessionReportDTO | null>(null);
   const [segMap, setSegMap] = useState<Record<string, SegmentInfo>>({});
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [completing, setCompleting] = useState(false);
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 已采纳的条目 key（revision action=accept），用于「已采纳」禁用态
+  const acceptedKeys = new Set(
+    (report?.revisions ?? [])
+      .filter((r) => r.action === "accept")
+      .map((r) => r.itemKey)
+  );
 
   const load = useCallback(async () => {
     try {
@@ -109,6 +133,15 @@ export function ReportPanel({
     void load();
     void loadSegments();
   }, [load, loadSegments]);
+
+  // 重新分析后清空旧报告并重载，避免展示作废的草稿/定稿
+  useEffect(() => {
+    if (!reloadNonce) return;
+    setReport(null);
+    setSegMap({});
+    void load();
+    void loadSegments();
+  }, [reloadNonce, load, loadSegments]);
 
   // 视频就绪或报告草稿出现时重拉片段映射，避免证据片段 chip 需手动刷新才出现
   useEffect(() => {
@@ -180,28 +213,57 @@ export function ReportPanel({
   }, [locate]);
 
   async function runRevision(
-    fn: () => Promise<SessionReportDTO>
+    fn: () => Promise<SessionReportDTO>,
+    key: string,
+    successText?: string
   ): Promise<void> {
     setBusy(true);
+    setBusyKey(key);
     try {
       setReport(await fn());
       setError(null);
+      if (successText) message.success(successText);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "操作失败");
+      const msg = err instanceof ApiError ? err.message : "操作失败";
+      setError(msg);
+      message.error(msg);
     } finally {
       setBusy(false);
+      setBusyKey(null);
+    }
+  }
+
+  async function handleComplete(): Promise<void> {
+    setCompleting(true);
+    try {
+      await api.completeReport(sessionId);
+      await load();
+      onCompleted?.();
+      setError(null);
+      message.success("复盘已归档，状态更新为「已复盘」");
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "完成复盘失败";
+      setError(msg);
+      message.error(msg);
+    } finally {
+      setCompleting(false);
     }
   }
 
   if (!loaded) {
-    return <p className="py-8 text-center text-[13px] text-ink-3">加载中…</p>;
+    return (
+      <div className="flex justify-center py-10">
+        <Spin />
+      </div>
+    );
   }
 
   if (!active) {
     return (
       <div>
         <PanelTitle>AI 复盘</PanelTitle>
-        <div className="rounded border border-line bg-surface p-4 text-[13px] leading-relaxed text-ink-3">
+        <div className="flex items-center gap-2.5 rounded border border-line bg-surface p-4 text-[13px] leading-relaxed text-ink-3">
+          {videosReady && <Spin size="small" />}
           {videosReady
             ? "AI 正在生成复盘草稿，请稍候（自动刷新）…"
             : "上传并处理完视频后，AI 将自动生成复盘草稿。"}
@@ -223,6 +285,39 @@ export function ReportPanel({
         </div>
       )}
 
+      {/* 复盘状态 + 完成复盘 */}
+      <div
+        className={`mb-3 flex items-center justify-between gap-3 rounded border px-3 py-2.5 ${
+          reviewedAt
+            ? "border-improved-line bg-improved-soft"
+            : "border-line bg-surface-2"
+        }`}
+      >
+        {reviewedAt ? (
+          <span className="flex items-center gap-1.5 text-[12.5px] font-medium text-improved">
+            <span className="h-[7px] w-[7px] rounded-full bg-improved" />
+            已复盘 · {fmtReviewedAt(reviewedAt)}
+          </span>
+        ) : (
+          <>
+            <span className="text-[12.5px] text-ink-2">
+              逐条采纳或修改后，点「完成复盘」归档本次训练
+            </span>
+            <button
+              type="button"
+              onClick={handleComplete}
+              disabled={completing}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-brand bg-brand px-3 py-1.5 text-[12.5px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {completing && (
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              )}
+              {completing ? "归档中…" : "完成复盘"}
+            </button>
+          </>
+        )}
+      </div>
+
       {/* 训练摘要 */}
       <PanelTitle>训练摘要</PanelTitle>
       <div className="mb-3 overflow-hidden rounded border border-line bg-surface">
@@ -238,7 +333,7 @@ export function ReportPanel({
         {active.modelVersion && (
           <div className="px-3 pb-2.5 text-[11px] text-ink-3">
             生成模型：{active.modelVersion}
-            {!isFinal && " · 首次修改或改分将自动定稿，AI 原文会被保留"}
+            {!isFinal && " · 采纳/修改会保存为我的修订，AI 原文始终保留"}
           </div>
         )}
       </div>
@@ -253,32 +348,43 @@ export function ReportPanel({
             seg={item.segmentId ? segMap[item.segmentId] : undefined}
             aiOriginal={draftItemMap.get(item.key)}
             busy={busy}
+            itemBusy={busyKey === item.key}
+            accepted={acceptedKeys.has(item.key)}
             flash={flashKey === item.key}
             onSeek={onSeek}
             onAccept={() =>
-              runRevision(() =>
-                api.createRevision(active.id, {
-                  itemKey: item.key,
-                  action: "accept"
-                })
+              runRevision(
+                () =>
+                  api.createRevision(active.id, {
+                    itemKey: item.key,
+                    action: "accept"
+                  }),
+                item.key,
+                "已采纳"
               )
             }
             onEdit={(title, detail) =>
-              runRevision(() =>
-                api.createRevision(active.id, {
-                  itemKey: item.key,
-                  action: "edit",
-                  title,
-                  detail
-                })
+              runRevision(
+                () =>
+                  api.createRevision(active.id, {
+                    itemKey: item.key,
+                    action: "edit",
+                    title,
+                    detail
+                  }),
+                item.key,
+                "修改已保存"
               )
             }
             onDelete={() =>
-              runRevision(() =>
-                api.createRevision(active.id, {
-                  itemKey: item.key,
-                  action: "delete"
-                })
+              runRevision(
+                () =>
+                  api.createRevision(active.id, {
+                    itemKey: item.key,
+                    action: "delete"
+                  }),
+                item.key,
+                "已删除该条目"
               )
             }
           />
@@ -291,14 +397,17 @@ export function ReportPanel({
       <AddItemForm
         busy={busy}
         onAdd={(dimension, title, detail) =>
-          runRevision(() =>
-            api.createRevision(active.id, {
-              itemKey: "new",
-              action: "add",
-              dimension,
-              title,
-              detail
-            })
+          runRevision(
+            () =>
+              api.createRevision(active.id, {
+                itemKey: "new",
+                action: "add",
+                dimension,
+                title,
+                detail
+              }),
+            "new",
+            "已添加条目"
           )
         }
       />
@@ -345,6 +454,8 @@ function ReportItemCard({
   seg,
   aiOriginal,
   busy,
+  itemBusy,
+  accepted,
   flash,
   onAccept,
   onEdit,
@@ -355,6 +466,10 @@ function ReportItemCard({
   seg?: SegmentInfo;
   aiOriginal?: AnalysisReportItem;
   busy: boolean;
+  /** 本条目正在提交修订 */
+  itemBusy?: boolean;
+  /** 本条目已被采纳（revision action=accept） */
+  accepted?: boolean;
   /** 时间线证据定位时短暂高亮 */
   flash?: boolean;
   onAccept: () => void;
@@ -463,13 +578,20 @@ function ReportItemCard({
           </>
         ) : (
           <>
-            <button
-              className="rounded-md border border-brand-line bg-surface px-2.5 py-1.5 text-[12px] text-brand hover:bg-brand hover:text-white disabled:opacity-50"
-              disabled={busy}
-              onClick={onAccept}
-            >
-              采纳
-            </button>
+            {accepted ? (
+              <span className="inline-flex cursor-default items-center gap-1.5 rounded-md border border-improved-line bg-improved-soft px-2.5 py-1.5 text-[12px] font-medium text-improved">
+                ✓ 已采纳
+              </span>
+            ) : (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-md border border-brand-line bg-surface px-2.5 py-1.5 text-[12px] text-brand hover:bg-brand hover:text-white disabled:opacity-50"
+                disabled={busy}
+                onClick={onAccept}
+              >
+                {itemBusy && <Spin size="small" />}
+                采纳
+              </button>
+            )}
             <button
               className="rounded-md border border-line-strong bg-surface px-2.5 py-1.5 text-[12px] text-ink-2 hover:border-ink-3 hover:text-ink disabled:opacity-50"
               disabled={busy}
@@ -477,13 +599,21 @@ function ReportItemCard({
             >
               修改
             </button>
-            <button
-              className="rounded-md border border-line-strong bg-surface px-2.5 py-1.5 text-[12px] text-ink-2 hover:border-risk hover:text-risk disabled:opacity-50"
-              disabled={busy}
-              onClick={onDelete}
+            <Popconfirm
+              title="确认删除该条目？"
+              description="AI 原文会保留在修订记录中。"
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true, loading: itemBusy }}
+              onConfirm={onDelete}
             >
-              删除
-            </button>
+              <button
+                className="rounded-md border border-line-strong bg-surface px-2.5 py-1.5 text-[12px] text-ink-2 hover:border-risk hover:text-risk disabled:opacity-50"
+                disabled={busy}
+              >
+                删除
+              </button>
+            </Popconfirm>
           </>
         )}
       </div>
