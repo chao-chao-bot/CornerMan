@@ -86,6 +86,20 @@ flowchart TB
   ScoreCollapse --> Drawer[SegmentBoard 底部抽屉]
 ```
 
+### 多视频素材库与报告覆盖状态
+
+报告是「一次训练」的复盘，一个 Session 可挂多个视频（多机位 / 多回合 / 补传）。多视频时信息架构补充以下规则（借鉴 Onform / CoachNow 的「素材库」心智与 SwingVision 的「AI 报告可重新生成」心智）：
+
+| 元素 | 位置 | 规则 |
+| --- | --- | --- |
+| 视频序号 | VideoStage 标题 + 证据 chip | 按上传时间升序编号「视频 1 / 视频 2…」，两处编号一致；单视频时不展示 |
+| 纳入状态徽章 | 每个视频卡片状态行 | ready 且已有报告时显示「已纳入复盘」（绿）/「未纳入复盘」（橙）；处理中沿用原状态徽章 |
+| 覆盖提示条 | ReportDraft 顶部 | 存在未纳入视频时显示「有 N 个新视频尚未纳入当前复盘」，附「重新生成完整复盘」主按钮与一行说明 |
+| 重新生成 | 报告顶部提示 + 视频模块右上角 | 破坏性确认：会作废当前 AI 草稿与我的修订、用全部视频重建，原始视频保留；仅查看时无需重新生成 |
+| 证据 chip 文案 | ReportDraft 条目 | 多视频时为「视频 N · 12.4–16.8s」，点击跳到对应视频与时间点 |
+
+覆盖状态由 API `SessionReportDTO.coverage` 提供（`readyVideoCount / includedVideoCount / unincludedVideoIds / reportUpdatedAt`），前端不重复推算。
+
 ## 5. 组件清单
 
 下列组件已在静态预览中实现，开发时对应 `packages/ui`：

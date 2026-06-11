@@ -342,12 +342,34 @@ export interface RevisionDTO {
   createdAt: ISODateString;
 }
 
+/**
+ * 报告覆盖范围：报告是 session 级聚合产物，可能存在「视频已 ready 但未纳入当前报告」
+ * 的情况（典型为补传视频）。前端据此提示「重新生成完整复盘」。
+ */
+export interface ReportCoverage {
+  /** 已就绪（可纳入分析）的视频数 */
+  readyVideoCount: number;
+  /** 当前 active 报告已纳入的视频数（其片段被报告条目/评分证据引用，或早于报告生成已 ready） */
+  includedVideoCount: number;
+  /** 已就绪但未纳入当前报告的视频 id（补传后尚未重新生成） */
+  unincludedVideoIds: ID[];
+  /** 当前 active 报告的更新时间（无报告时为 null） */
+  reportUpdatedAt: ISODateString | null;
+  /**
+   * 报告引用了已不存在的片段（视频被重新处理后片段 id 变化导致悬空），
+   * 证据片段将无法跳转，需要重新生成完整复盘。
+   */
+  staleEvidence: boolean;
+}
+
 /** 训练 session 的报告聚合响应 */
 export interface SessionReportDTO {
   draft: ReportDTO | null;
   final: ReportDTO | null;
   scores: ScoreDTO[];
   revisions: RevisionDTO[];
+  /** 报告覆盖范围（多视频/补传场景的纳入状态） */
+  coverage: ReportCoverage;
 }
 
 /** 逐条修订入参 */

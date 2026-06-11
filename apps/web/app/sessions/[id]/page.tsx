@@ -5,28 +5,83 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import type {
   PoseMetrics,
+  ReportCoverage,
   TrainingSessionDTO,
   VideoDTO
 } from "@cornerman/shared-types";
-import { Button, Module, StatBox, StatStrip } from "@cornerman/ui";
+import { Module, SegControl, StatBox, StatStrip, cn } from "@cornerman/ui";
 import { ApiError } from "@cornerman/api-client";
 import { AppFrame } from "../../components/app-frame";
 import { api } from "../../lib/api";
 import { VideosPanel } from "./videos-panel";
 import { ReportPanel } from "./report-panel";
 import { SessionHeader } from "./session-header";
-import type { EvidenceRef, LocateRequest, SeekRequest } from "./types";
-
-function SaveState() {
-  return (
-    <span className="flex items-center gap-1.5 text-[13px] text-improved">
-      <span className="h-[7px] w-[7px] rounded-full bg-improved" />
-      已自动保存
-    </span>
-  );
-}
+import type {
+  EvidenceRef,
+  LocateRequest,
+  ReportProgress,
+  SeekRequest
+} from "./types";
 
 export type { SeekRequest } from "./types";
+
+type Stage = "processing" | "draft" | "reviewing" | "reviewed";
+
+const STAGE_STEPS: { key: Stage; label: string }[] = [
+  { key: "processing", label: "分析中" },
+  { key: "draft", label: "待复盘" },
+  { key: "reviewing", label: "复盘中" },
+  { key: "reviewed", label: "已复盘" }
+];
+
+/** 复盘进度阶段条：分析中 → 待复盘 → 复盘中 → 已复盘 */
+function StageBar({ stage }: { stage: Stage }) {
+  const currentIndex = STAGE_STEPS.findIndex((s) => s.key === stage);
+  return (
+    <div className="mb-4 flex items-center gap-1.5 rounded border border-line bg-surface px-3 py-2.5">
+      {STAGE_STEPS.map((step, i) => {
+        const done = i < currentIndex;
+        const active = i === currentIndex;
+        return (
+          <div key={step.key} className="flex flex-1 items-center gap-1.5">
+            <span
+              className={cn(
+                "flex h-[18px] w-[18px] items-center justify-center rounded-full text-[10px] font-semibold",
+                active
+                  ? "bg-brand text-white"
+                  : done
+                    ? "bg-improved text-white"
+                    : "bg-surface-2 text-ink-3"
+              )}
+            >
+              {done ? "✓" : i + 1}
+            </span>
+            <span
+              className={cn(
+                "text-[12px]",
+                active
+                  ? "font-semibold text-brand"
+                  : done
+                    ? "text-improved"
+                    : "text-ink-3"
+              )}
+            >
+              {step.label}
+            </span>
+            {i < STAGE_STEPS.length - 1 && (
+              <span
+                className={cn(
+                  "ml-1 h-px flex-1",
+                  i < currentIndex ? "bg-improved" : "bg-line"
+                )}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 const PUNCH_KIND_LABEL: Record<string, string> = {
   straight: "直拳",
@@ -109,6 +164,10 @@ export default function SessionDetailPage() {
   const [locate, setLocate] = useState<LocateRequest | null>(null);
   // 重新分析后用 nonce 强制报告面板重载，避免展示旧报告
   const [reportNonce, setReportNonce] = useState(0);
+  // 移动端「复盘 / 视频」切换，默认进复盘
+  const [mobileTab, setMobileTab] = useState<"report" | "video">("report");
+  const [progress, setProgress] = useState<ReportProgress | null>(null);
+  const [coverage, setCoverage] = useState<ReportCoverage | null>(null);
 
   const reloadSession = useCallback(() => {
     if (!params?.id) return;
@@ -138,25 +197,42 @@ export default function SessionDetailPage() {
     reloadSession();
   }
 
+  // 重新生成完整复盘：用本次训练的全部视频重跑分析，并刷新报告/状态
+  const regenerate = useCallback(async () => {
+    if (!params?.id) return;
+    await api.reanalyzeSession(params.id);
+    handleReanalyzed();
+  }, [params?.id]);
+
   const videosReady = videos.some((v) => v.status === "ready");
 
-  const headerExtras = session ? <SaveState /> : undefined;
+  const stage: Stage = (() => {
+    if (session?.reviewedAt) return "reviewed";
+    if (!progress?.hasDraft) return "processing";
+    if (progress.handledItems > 0 || progress.hasFinal) return "reviewing";
+    return "draft";
+  })();
 
   const rightPanel = session ? (
-    <ReportPanel
-      sessionId={session.id}
-      videosReady={videosReady}
-      reviewedAt={session.reviewedAt}
-      reloadNonce={reportNonce}
-      onSeek={requestSeek}
-      onEvidence={setEvidence}
-      onCompleted={reloadSession}
-      locate={locate}
-    />
+    <div className={cn("lg:block", mobileTab === "report" ? "block" : "hidden")}>
+      <ReportPanel
+        sessionId={session.id}
+        videosReady={videosReady}
+        reviewedAt={session.reviewedAt}
+        reloadNonce={reportNonce}
+        onSeek={requestSeek}
+        onEvidence={setEvidence}
+        onCompleted={reloadSession}
+        onProgress={setProgress}
+        onCoverage={setCoverage}
+        onRegenerate={regenerate}
+        locate={locate}
+      />
+    </div>
   ) : undefined;
 
   return (
-    <AppFrame headerExtras={headerExtras} rightPanel={rightPanel}>
+    <AppFrame rightPanel={rightPanel}>
       <Link href="/sessions" className="text-[13px] text-brand">
         ← 返回训练记录
       </Link>
@@ -172,29 +248,52 @@ export default function SessionDetailPage() {
         <div className="mt-3">
           <SessionHeader session={session} videos={videos} />
 
-          <VideosPanel
-            sessionId={session.id}
-            onVideosChange={setVideos}
-            onReanalyzed={handleReanalyzed}
-            seek={seek}
-            evidence={evidence}
-            onLocate={requestLocate}
-          />
+          <StageBar stage={stage} />
 
-          <PoseMetricsModule videos={videos} />
+          {/* 移动端「复盘 / 视频」切换；桌面三栏始终并列 */}
+          <div className="mb-4 lg:hidden">
+            <SegControl<"report" | "video">
+              value={mobileTab}
+              onChange={setMobileTab}
+              options={[
+                { value: "report", label: "复盘报告" },
+                { value: "video", label: "视频与指标" }
+              ]}
+            />
+          </div>
 
-          <Module head="我的补充" meta="文字记录">
-            <div className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-revise">
-              <span className="h-[13px] w-[3px] rounded-sm bg-revise" />
-              我的训练补充
-            </div>
-            <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink">
-              {session.userNote || "（创建训练时未填写感受）"}
-            </p>
-            <p className="mt-2.5 text-[11.5px] text-ink-3">
-              想补充复盘要点？在右侧「+ 新增我的条目」逐条添加，会与 AI 起草并列保留。
-            </p>
-          </Module>
+          <div
+            className={cn(
+              "lg:block",
+              mobileTab === "video" ? "block" : "hidden"
+            )}
+          >
+            <VideosPanel
+              sessionId={session.id}
+              onVideosChange={setVideos}
+              onRegenerate={regenerate}
+              hasReport={Boolean(progress?.hasDraft || progress?.hasFinal)}
+              unincludedVideoIds={coverage?.unincludedVideoIds ?? []}
+              seek={seek}
+              evidence={evidence}
+              onLocate={requestLocate}
+            />
+
+            <PoseMetricsModule videos={videos} />
+
+            <Module head="我的补充" meta="文字记录">
+              <div className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-revise">
+                <span className="h-[13px] w-[3px] rounded-sm bg-revise" />
+                我的训练补充
+              </div>
+              <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink">
+                {session.userNote || "（创建训练时未填写感受）"}
+              </p>
+              <p className="mt-2.5 text-[11.5px] text-ink-3">
+                想补充复盘要点？在「复盘报告」里「+ 新增我的条目」逐条添加，会与 AI 起草并列保留。
+              </p>
+            </Module>
+          </div>
         </div>
       )}
     </AppFrame>

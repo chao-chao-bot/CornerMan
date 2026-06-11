@@ -117,6 +117,22 @@ export async function processVideo(
       })
     ]);
 
+    // 片段已被重建（全新 id）。若 session 已有未定稿的 AI 草稿，它引用的是旧片段 id
+    // → 悬空。软删该草稿，让本次 ai.analyze 重建出引用新片段的报告。
+    // 存在 final（用户已定稿/修订）时不动，避免毁掉用户修订，改由 coverage.staleEvidence 提示用户显式重生成。
+    const finalReport = await prisma.analysisReport.findFirst({
+      where: { sessionId: video.sessionId, status: "final", deletedAt: null },
+      select: { id: true }
+    });
+    if (!finalReport) {
+      await prisma.analysisReport.updateMany({
+        where: { sessionId: video.sessionId, status: "draft", deletedAt: null },
+        data: { deletedAt: new Date() }
+      });
+    }
+
+    // 不再用固定 jobId（videoId）：重试/重新处理时同名已完成任务会被 BullMQ 去重而不重跑，
+    // 导致报告无法重建。改用自动唯一 jobId；analyzeSession 自身按 session 幂等，重复触发也安全。
     await aiQueue.add(
       "analyze",
       {
@@ -124,7 +140,7 @@ export async function processVideo(
         sessionId: video.sessionId,
         poseMetrics: pose?.metrics
       },
-      { jobId: videoId, removeOnComplete: 100, removeOnFail: 100 }
+      { removeOnComplete: 100, removeOnFail: 100 }
     );
 
     console.log(

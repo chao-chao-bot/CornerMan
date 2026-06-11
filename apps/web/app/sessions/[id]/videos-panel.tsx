@@ -3,15 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Popconfirm, Spin } from "antd";
 import type { VideoDTO, VideoSegmentDTO } from "@cornerman/shared-types";
-import { Module, SegControl } from "@cornerman/ui";
+import { Module, SegControl, Uploader } from "@cornerman/ui";
 import { ApiError } from "@cornerman/api-client";
 import { api } from "../../lib/api";
+import { useVideoUpload } from "../../lib/use-video-upload";
 import {
   PUNCH_KIND_LABEL,
   SEGMENT_TAG_LABEL,
   VIDEO_STATUS_LABEL
 } from "../../lib/labels";
-import type { EvidenceRef, SeekRequest } from "./types";
+import { buildVideoIndexMap, type EvidenceRef, type SeekRequest } from "./types";
 
 const STATUS_STYLE: Record<string, string> = {
   uploading: "bg-brand-soft text-brand border-brand-line",
@@ -108,7 +109,9 @@ function VideoStage({
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
   const [dur, setDur] = useState((video.durationMs ?? 0) / 1000);
+  // 默认证据轨（直接服务复盘）；用户手动切换后不再自动跳轨
   const [track, setTrack] = useState<TrackMode>("action");
+  const userPickedTrack = useRef(false);
   // 时间线缩放（监控式）：1 = 适配宽度，最大 12 倍
   const [zoom, setZoom] = useState(1);
   const zoomRef = useRef(1);
@@ -185,6 +188,18 @@ function VideoStage({
   useEffect(() => {
     setHiddenKeys(new Set());
   }, [track]);
+
+  // 出现证据片段时默认切到证据轨（用户手动切过则不再自动跳）
+  useEffect(() => {
+    if (!userPickedTrack.current && evidenceCount > 0) {
+      setTrack("evidence");
+    }
+  }, [evidenceCount]);
+
+  function pickTrack(t: TrackMode) {
+    userPickedTrack.current = true;
+    setTrack(t);
+  }
 
   // 以容器内某个 x（相对容器左缘）为锚点缩放，保持该处时间不动
   const zoomAt = useCallback((nextZoom: number, anchorX: number) => {
@@ -342,12 +357,12 @@ function VideoStage({
             </span>
             <SegControl<TrackMode>
               value={track}
-              onChange={setTrack}
+              onChange={pickTrack}
               className="[&>button]:px-2.5 [&>button]:py-1 [&>button]:text-[11px]"
               options={[
+                { value: "evidence", label: `证据片段 ${evidenceCount}` },
                 { value: "action", label: `动作片段 ${segments.length}` },
-                { value: "punch", label: `拳型 ${punchEvents.length}` },
-                { value: "evidence", label: `证据片段 ${evidenceCount}` }
+                { value: "punch", label: `拳型 ${punchEvents.length}` }
               ]}
             />
           </span>
@@ -613,15 +628,21 @@ function VideoStage({
 export function VideosPanel({
   sessionId,
   onVideosChange,
-  onReanalyzed,
+  onRegenerate,
+  hasReport,
+  unincludedVideoIds,
   seek,
   evidence,
   onLocate
 }: {
   sessionId: string;
   onVideosChange?: (videos: VideoDTO[]) => void;
-  /** 重新分析触发后通知父级刷新报告/状态 */
-  onReanalyzed?: () => void;
+  /** 重新生成完整复盘：用全部视频重跑分析，由父级统一处理并刷新报告/状态 */
+  onRegenerate?: () => Promise<void>;
+  /** 是否已存在 AI 报告（决定重生成文案的措辞） */
+  hasReport?: boolean;
+  /** 已就绪但未纳入当前报告的视频 id（补传后尚未重新生成） */
+  unincludedVideoIds?: string[];
   seek?: SeekRequest | null;
   evidence?: EvidenceRef[];
   onLocate?: (refKey: string) => void;
@@ -630,6 +651,7 @@ export function VideosPanel({
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -654,6 +676,13 @@ export function VideosPanel({
     void load();
   }, [load]);
 
+  const { items: uploads, uploadFiles, clearDone } = useVideoUpload(
+    sessionId,
+    () => {
+      void load();
+    }
+  );
+
   // processing 也允许重试：避免任务异常时按钮被隐藏导致无法自救
   const canReanalyze = videos.some(
     (v) =>
@@ -665,12 +694,15 @@ export function VideosPanel({
   async function handleReanalyze(): Promise<void> {
     setReanalyzing(true);
     try {
-      await api.reanalyzeSession(sessionId);
-      await load();
-      onReanalyzed?.();
+      if (onRegenerate) {
+        await onRegenerate();
+      } else {
+        await api.reanalyzeSession(sessionId);
+        await load();
+      }
       setError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "重新分析失败");
+      setError(err instanceof ApiError ? err.message : "重新生成失败");
     } finally {
       setReanalyzing(false);
     }
@@ -694,6 +726,13 @@ export function VideosPanel({
     };
   }, [videos, load]);
 
+  // 视频按上传时间升序编号并展示（视频 1 = 最早上传），与报告证据 chip 对齐
+  const videoIndexMap = buildVideoIndexMap(videos);
+  const displayVideos = [...videos].sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt)
+  );
+  const unincludedSet = new Set(unincludedVideoIds ?? []);
+
   return (
     <Module
       head="训练视频"
@@ -702,11 +741,15 @@ export function VideosPanel({
           {videos.length ? <span>{videos.length} 个</span> : null}
           {canReanalyze && (
             <Popconfirm
-              title="重新分析这些视频？"
-              description="将重建动作片段与拳型数据，并用新分析覆盖原有 AI 草稿与复盘。"
-              okText="重新分析"
+              title="用全部视频重新生成完整复盘？"
+              description={
+                <span className="block max-w-[260px] text-[12.5px] leading-relaxed">
+                  会作废当前 AI 草稿与我的修订，并用本次训练的全部视频重新生成；原始视频保留。如果只是继续查看，不需要重新生成。
+                </span>
+              }
+              okText="重新生成"
               cancelText="取消"
-              okButtonProps={{ loading: reanalyzing }}
+              okButtonProps={{ danger: true, loading: reanalyzing }}
               onConfirm={handleReanalyze}
             >
               <button
@@ -714,7 +757,7 @@ export function VideosPanel({
                 disabled={reanalyzing}
                 className="inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-surface px-2.5 py-1 text-[12px] text-ink-2 transition-colors hover:border-brand hover:text-brand disabled:opacity-50"
               >
-                {reanalyzing ? <Spin size="small" /> : "重新分析"}
+                {reanalyzing ? <Spin size="small" /> : "重新生成完整复盘"}
               </button>
             </Popconfirm>
           )}
@@ -728,22 +771,47 @@ export function VideosPanel({
       )}
 
       <div>
-        {videos.map((v) => (
-          <div key={v.id}>
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="truncate text-[13px] font-medium">
-                {v.originalFileName ?? v.id}
-              </span>
-              <StatusBadge status={v.status} />
+        {displayVideos.map((v) => {
+          const idx = videoIndexMap.get(v.id);
+          const multi = displayVideos.length > 1;
+          const unincluded = unincludedSet.has(v.id);
+          return (
+            <div key={v.id}>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2">
+                  {multi && idx && (
+                    <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-semibold text-ink-2">
+                      视频 {idx}
+                    </span>
+                  )}
+                  <span className="truncate text-[13px] font-medium">
+                    {v.originalFileName ?? v.id}
+                  </span>
+                </span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  {v.status === "ready" && hasReport && (
+                    <span
+                      className={`rounded border px-2 py-0.5 text-[11px] ${
+                        unincluded
+                          ? "border-revise-line bg-revise-soft text-revise"
+                          : "border-improved-line bg-improved-soft text-improved"
+                      }`}
+                    >
+                      {unincluded ? "未纳入复盘" : "已纳入复盘"}
+                    </span>
+                  )}
+                  <StatusBadge status={v.status} />
+                </span>
+              </div>
+              <VideoStage
+                video={v}
+                seek={seek}
+                evidence={evidence}
+                onLocate={onLocate}
+              />
             </div>
-            <VideoStage
-              video={v}
-              seek={seek}
-              evidence={evidence}
-              onLocate={onLocate}
-            />
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {!loaded && (
@@ -753,9 +821,77 @@ export function VideosPanel({
       )}
 
       {loaded && videos.length === 0 && (
-        <p className="py-4 text-center text-[13px] text-ink-3">
-          该训练没有视频。视频在「新建训练」时一并上传。
+        <p className="pb-2 pt-4 text-center text-[13px] text-ink-3">
+          该训练还没有视频，可在下方补传后自动开始分析。
         </p>
+      )}
+
+      {/* 补传 / 追加视频：覆盖「新建时上传失败」「先建后补」「多段视频」 */}
+      {loaded && (
+        <div className="mt-2 border-t border-line pt-3">
+          {!showUpload && videos.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setShowUpload(true)}
+              className="text-[12.5px] text-ink-2 hover:text-brand"
+            >
+              + 补传 / 追加视频
+            </button>
+          ) : (
+            <div>
+              <Uploader
+                onFiles={uploadFiles}
+                hint="支持 mp4 / mov；补传后自动转码并切分动作片段"
+              />
+              {uploads.map((u) => (
+                <div
+                  key={u.id}
+                  className="mt-2.5 flex items-center gap-3 rounded-sm border border-line bg-surface p-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] font-medium">
+                      {u.fileName}
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full border border-line bg-surface-2">
+                      <div
+                        className={`h-full rounded-full transition-all ${u.phase === "error" ? "bg-risk" : "bg-brand"}`}
+                        style={{ width: `${u.phase === "preparing" ? 5 : u.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span
+                    className={`whitespace-nowrap text-[11px] font-semibold ${
+                      u.phase === "done"
+                        ? "text-improved"
+                        : u.phase === "error"
+                          ? "text-risk"
+                          : "text-brand"
+                    }`}
+                  >
+                    {u.phase === "done"
+                      ? "已完成"
+                      : u.phase === "error"
+                        ? u.error || "失败"
+                        : u.phase === "finalizing"
+                          ? "处理中"
+                          : u.phase === "preparing"
+                            ? "准备中"
+                            : `上传中 ${u.progress}%`}
+                  </span>
+                </div>
+              ))}
+              {uploads.some((u) => u.phase === "done") && (
+                <button
+                  type="button"
+                  onClick={clearDone}
+                  className="mt-2 text-[12px] text-ink-3 hover:text-brand"
+                >
+                  清除已完成
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </Module>
   );

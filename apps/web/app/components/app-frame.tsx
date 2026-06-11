@@ -20,8 +20,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "成长",
     items: [
-      { href: "/trends", label: "趋势看板" },
-      { href: "/problems", label: "问题追踪" }
+      { href: "/trends", label: "趋势看板", disabled: true },
+      { href: "/problems", label: "问题追踪", disabled: true }
     ]
   }
 ];
@@ -98,13 +98,6 @@ export function AppFrame({
           })}
         </div>
       ))}
-      <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-ink-3">
-        本周
-      </div>
-      <div className="mt-1.5 rounded border border-line bg-surface-2 p-3.5">
-        <div className="text-[26px] font-bold leading-none text-brand">—</div>
-        <div className="mt-1 text-[11px] text-ink-3">本周训练 · 统计即将开放</div>
-      </div>
     </nav>
   );
 

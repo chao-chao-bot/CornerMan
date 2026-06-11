@@ -3,6 +3,33 @@
 记录每次大型修改。新记录追加在最上方（倒序）。
 每条字段：日期 / 范围 / 改动摘要 / 影响文件 / 备注。
 
+## 2026-06-10 · 多视频 Session 级报告与补传交互
+- 范围：video-worker / api / shared-types / web / docs
+- 根因：报告生成绑定单视频——[analyze.ts](apps/video-worker/src/analyze.ts) 只查触发视频 `where:{videoId}` 的片段，且 session 已有 draft 即跳过，导致补传视频永远进不了报告，只有第一个视频与报告联动
+- 改动摘要（依 `docs` 多视频报告方案落地）：
+  - **Worker 改为 session 级聚合**（analyze.ts）：`analyzeSession()` 查询该 `sessionId` 下全部 `ready` 视频，聚合其所有 `VideoSegment`（排序 `video.createdAt ASC → segment.startMs ASC`）后再喂 LLM；姿态指标按 ready 视频聚合（次数求和 / 比率取平均 / 拳型累加）；若仍有 `uploaded/processing` 视频则跳过本次，等最后一个 ready 触发，避免半成品报告；session 级幂等保留（已有 draft/final 不自动覆盖）
+  - **API 报告覆盖元信息**（[reports.service.ts](apps/api/src/reports/reports.service.ts) + [shared-types](packages/shared-types/src/index.ts)）：`SessionReportDTO` 新增 `coverage`（`readyVideoCount/includedVideoCount/unincludedVideoIds/reportUpdatedAt`），不新增 migration；纳入判定 = 视频 `createdAt ≤` 草稿基准时间 或 其片段被报告/评分证据引用
+  - **前端覆盖状态 UI**（[videos-panel.tsx](apps/web/app/sessions/[id]/videos-panel.tsx) + [report-panel.tsx](apps/web/app/sessions/[id]/report-panel.tsx) + [page.tsx](apps/web/app/sessions/[id]/page.tsx)）：视频卡片标注「已纳入 / 未纳入复盘」；报告顶部在有未纳入视频时提示「有 N 个新视频尚未纳入当前复盘」并提供「重新生成完整复盘」；重新生成入口统一文案为「重新生成完整复盘」+ 破坏性确认（作废草稿/修订、保留原始视频）；证据 chip 与视频标题统一「视频 N」序号（按上传时间升序，[types.ts](apps/web/app/sessions/[id]/types.ts) 提供 `buildVideoIndexMap`，多视频时视频列表改升序展示）
+  - **文档同步**：[prd.md](docs/prd.md) 报告 session 级语义与多视频/补传规则、[tech-design.md](docs/tech-design.md) 7.2.1 session 级聚合与 coverage、[roadmap.md](docs/roadmap.md) P3/P4 体验修正项、[report-page-style-options.md](docs/report-page-style-options.md) 多视频素材库信息架构
+- 影响文件：`apps/video-worker/src/analyze.ts`、`apps/api/src/reports/reports.service.ts`、`packages/shared-types/src/index.ts`、`apps/web/app/sessions/[id]/{page,report-panel,videos-panel,types}.tsx`、`docs/{prd,tech-design,roadmap,report-page-style-options,worklog}.md`
+- 验证：`turbo typecheck` 9/9 全绿；需手测的多视频路径见下方备注
+- 备注：手测路径——①同一训练上传多个视频，确认 draft 证据片段可来自不同视频且时间线均可跳转；②已出报告后补传新视频，ready 后报告顶部出现「未纳入复盘」提示、对应视频卡片标「未纳入复盘」；③点「重新生成完整复盘」后新报告覆盖全部 ready 视频、提示消失、所有视频标「已纳入复盘」；④验证仍有视频处理中时不会先出半成品报告（等全部 ready 才生成）
+
+## 2026-06-10 · 页面层交互优化（复盘任务流 + 补传 + 移动端 + 列表）
+- 范围：web
+- 改动摘要（依 `docs/flow-ux-review` 方案全量落地）：
+  - **补齐断裂路径**：[videos-panel.tsx](apps/web/app/sessions/[id]/videos-panel.tsx) 接入此前未使用的 `useVideoUpload` + `Uploader`，详情页支持「补传/追加视频」（有视频时折叠为「+ 补传/追加视频」，无视频时空态引导），覆盖「新建时上传失败 / 先建后补 / 多段视频」；登录页 [login/page.tsx](apps/web/app/login/page.tsx) 默认 Tab 由「注册」改为「登录」并调整 Tab 顺序
+  - **详情页复盘任务流**（[page.tsx](apps/web/app/sessions/[id]/page.tsx)）：新增阶段条 `分析中→待复盘→复盘中→已复盘`（由 ReportPanel 上抛 `ReportProgress` 计算）；移动端新增 `复盘报告 / 视频与指标` SegControl 切换（桌面三栏不变，默认进复盘）；移除顶栏误导性「已自动保存」
+  - **报告条目分组**（[report-panel.tsx](apps/web/app/sessions/[id]/report-panel.tsx)）：条目按「待处理 / 已处理」拆分，待处理优先展示、已处理默认折叠可展开；「完成复盘」提示文案随未处理数动态变化；新增 `onProgress` 上抛进度
+  - **视频时间线复盘导向**（videos-panel.tsx）：默认轨道改为「证据片段」并把三轨重排为 证据/动作/拳型；出现证据片段时自动跳证据轨（用户手动切过则不再自动跳）
+  - **SessionHeader 去占位**（[session-header.tsx](apps/web/app/sessions/[id]/session-header.tsx)）：移除恒为 `—` 的「回合数/出拳数」，改为只渲染有真实数据的指标（时长/关键片段/出拳次数/记录时长），并展示地点与本次重点
+  - **训练列表**（[sessions/page.tsx](apps/web/app/sessions/page.tsx)）：状态列增加状态驱动 CTA（查看报告 / 去复盘 / 等待分析）；高级筛选（状态/综合分/日期）默认折叠到「筛选」按钮后，首屏只留类型筛选 + 新建
+  - **新建训练页**（[sessions/new/page.tsx](apps/web/app/sessions/new/page.tsx)）：Must 字段（类型/日期/本次重点/感受）前置，标题/时长/地点折叠到「更多信息」；主按钮「保存并开始分析」改为「开始 AI 复盘」
+  - **侧栏降权**（[app-frame.tsx](apps/web/app/components/app-frame.tsx)）：趋势看板/问题追踪与片段库统一标「即将开放」禁用态；移除常驻「本周训练 —」占位 KPI
+- 影响文件：`apps/web/app/login/page.tsx`、`apps/web/app/components/app-frame.tsx`、`apps/web/app/sessions/{page,new/page}.tsx`、`apps/web/app/sessions/[id]/{page,report-panel,videos-panel,session-header,types}.tsx`
+- 验证：`turbo typecheck` 9/9 全绿；交互手测由用户进行
+- 备注：「撤销采纳」无对应后端接口，故保留「采纳后仍可修改/删除」作为再处理路径；移动端非默认 tab 时报告侧栏在小屏会留极窄空白（纯 CSS 显隐取舍）
+
 ## 2026-06-10 · 修复进度条色块点击不跳转
 - 范围：web
 - 改动摘要：

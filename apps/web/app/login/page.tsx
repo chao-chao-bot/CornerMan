@@ -11,7 +11,7 @@ type Mode = "register" | "login";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("register");
+  const [mode, setMode] = useState<Mode>("login");
   const [identifier, setIdentifier] = useState("");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -54,8 +54,8 @@ export default function LoginPage() {
           value={mode}
           onChange={(k) => setMode(k as Mode)}
           items={[
-            { key: "register", label: "注册" },
-            { key: "login", label: "登录" }
+            { key: "login", label: "登录" },
+            { key: "register", label: "注册" }
           ]}
         />
 

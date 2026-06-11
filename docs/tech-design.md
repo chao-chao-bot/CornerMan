@@ -163,6 +163,27 @@ flowchart LR
 - 评分修正记录 `(ai_score, user_score, delta)`；
 - `draft` 与 `revisions` 的差异是后续训练拳击专用模型的高价值样本。
 
+### 7.2.1 Session 级聚合与多视频 / 补传
+
+`AnalysisReport` 归属 `TrainingSession`，是该次训练所有视频的聚合产物，而非绑定单个视频：
+
+- `ai.analyze` 由某个视频 `ready` 触发，但 `analyzeSession()` 不再只读触发视频的片段，而是查询该 `sessionId` 下所有 `ready` 视频，聚合它们的全部 `VideoSegment`（排序 `video.createdAt ASC → segment.startMs ASC`）后再喂给 LLM；姿态指标也按 ready 视频聚合（次数求和、比率取平均、拳型分布累加）。
+- 若 session 下仍有 `uploaded / processing` 视频，本次任务直接跳过，等最后一个视频 `ready` 时再触发生成完整草稿，避免半成品报告。
+- 幂等仍为 session 级：已存在 `draft/final` 时不自动覆盖，保护用户修订。补传视频不会静默改写报告，由用户显式「重新生成完整复盘」（复用 `reanalyzeSession()`，软删旧报告、清 `reviewedAt`、重建片段与姿态指标并重跑全部视频）。
+- **报告覆盖范围**：`reports` 聚合返回 `SessionReportDTO.coverage`（`readyVideoCount / includedVideoCount / unincludedVideoIds / reportUpdatedAt`），不新增数据库字段。判定某 ready 视频「已纳入」的依据满足其一即可：(1) 视频 `createdAt ≤` 草稿生成基准时间；(2) 视频的某个片段被报告条目或评分证据引用。前端据此在视频卡片标注「已纳入 / 未纳入复盘」、在报告顶部提示并提供「重新生成完整复盘」。
+- 多视频时证据片段携带视频序号（按上传时间升序，1 起），与视频列表「视频 N」编号一致，便于跨视频跳转。
+
+```mermaid
+flowchart TD
+  upload["补传视频"] --> ready{"全部视频 ready?"}
+  ready -->|"否"| wait["跳过，等最后一个视频"]
+  ready -->|"是"| hasReport{"已有 draft/final?"}
+  hasReport -->|"否"| draft["聚合全部 ready 视频生成完整 draft"]
+  hasReport -->|"是"| banner["coverage 标记未纳入视频 → 前端提示"]
+  banner --> regen["用户重新生成完整复盘"]
+  regen --> draft
+```
+
 ### 7.3 约束
 
 - LLM 输出强制结构化（JSON schema 校验，失败重试 + 降级模板）

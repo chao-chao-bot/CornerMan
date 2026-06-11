@@ -56,11 +56,11 @@ function matchScore(score: number | undefined, f: ScoreFilter): boolean {
 
 const STATUS_META: Record<
   SessionReportStatus,
-  { label: string; tone: BadgeTone }
+  { label: string; tone: BadgeTone; cta: string }
 > = {
-  final: { label: "已复盘", tone: "improved" },
-  draft: { label: "待复盘", tone: "new" },
-  pending: { label: "分析中", tone: "blue" }
+  final: { label: "已复盘", tone: "improved", cta: "查看报告" },
+  draft: { label: "待复盘", tone: "new", cta: "去复盘 →" },
+  pending: { label: "分析中", tone: "blue", cta: "等待分析" }
 };
 
 function weekStart(d: Date): number {
@@ -102,6 +102,7 @@ export default function SessionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
 
   const hasActiveFilter =
     filter !== "all" ||
@@ -191,6 +192,12 @@ export default function SessionsPage() {
               }))
             ]}
           />
+          <Button
+            variant={showFilters || hasActiveFilter ? "default" : "ghost"}
+            onClick={() => setShowFilters((v) => !v)}
+          >
+            筛选{hasActiveFilter ? " ·已启用" : ""}
+          </Button>
           <Link href="/sessions/new">
             <Button variant="primary">+ 新建训练</Button>
           </Link>
@@ -224,36 +231,38 @@ export default function SessionsPage() {
 
       {!loading && (
         <>
-          <div className="mb-3 flex flex-wrap items-center gap-2.5">
-            <Select<StatusFilter>
-              value={statusFilter}
-              onChange={setStatusFilter}
-              options={STATUS_FILTER_OPTIONS}
-              style={{ width: 130 }}
-            />
-            <Select<ScoreFilter>
-              value={scoreFilter}
-              onChange={setScoreFilter}
-              options={SCORE_FILTER_OPTIONS}
-              style={{ width: 140 }}
-            />
-            <DatePicker.RangePicker
-              value={dateRange ?? undefined}
-              onChange={(v) =>
-                setDateRange(v as [Dayjs | null, Dayjs | null] | null)
-              }
-              placeholder={["开始日期", "结束日期"]}
-            />
-            {hasActiveFilter && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="text-[12.5px] text-ink-3 hover:text-brand"
-              >
-                清除筛选
-              </button>
-            )}
-          </div>
+          {(showFilters || hasActiveFilter) && (
+            <div className="mb-3 flex flex-wrap items-center gap-2.5">
+              <Select<StatusFilter>
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={STATUS_FILTER_OPTIONS}
+                style={{ width: 130 }}
+              />
+              <Select<ScoreFilter>
+                value={scoreFilter}
+                onChange={setScoreFilter}
+                options={SCORE_FILTER_OPTIONS}
+                style={{ width: 140 }}
+              />
+              <DatePicker.RangePicker
+                value={dateRange ?? undefined}
+                onChange={(v) =>
+                  setDateRange(v as [Dayjs | null, Dayjs | null] | null)
+                }
+                placeholder={["开始日期", "结束日期"]}
+              />
+              {hasActiveFilter && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-[12.5px] text-ink-3 hover:text-brand"
+                >
+                  清除筛选
+                </button>
+              )}
+            </div>
+          )}
 
           <Module
             head="全部训练"
@@ -345,6 +354,11 @@ export default function SessionsPage() {
                       </td>
                       <td>
                         <Badge tone={status.tone}>{status.label}</Badge>
+                        <div
+                          className={`mt-0.5 text-[11px] ${s.reportStatus === "pending" ? "text-ink-3" : "text-brand"}`}
+                        >
+                          {status.cta}
+                        </div>
                       </td>
                       <td className="text-ink-3">{fmtDate(s.trainedAt)}</td>
                       <td className="text-right">

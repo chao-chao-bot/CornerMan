@@ -12,6 +12,46 @@ import { createLLMProvider, StubProvider, type LLMProvider } from "./llm/index.j
 const provider: LLMProvider = createLLMProvider();
 const stubFallback = new StubProvider();
 
+/** 多视频时聚合姿态指标：次数求和、比率取平均、拳型分布累加。 */
+function aggregatePoseMetrics(
+  list: PoseMetrics[]
+): PoseMetrics | undefined {
+  if (list.length === 0) return undefined;
+  if (list.length === 1) return list[0];
+
+  const avg = (key: keyof PoseMetrics): number | undefined => {
+    const vals = list
+      .map((m) => m[key])
+      .filter((v): v is number => typeof v === "number");
+    return vals.length
+      ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 1000) / 1000
+      : undefined;
+  };
+  const sum = (key: keyof PoseMetrics): number =>
+    list.reduce((acc, m) => {
+      const v = m[key];
+      return acc + (typeof v === "number" ? v : 0);
+    }, 0);
+
+  const punchTypes: Record<string, number> = {};
+  for (const m of list) {
+    for (const [k, n] of Object.entries(m.punchTypes ?? {})) {
+      punchTypes[k] = (punchTypes[k] ?? 0) + n;
+    }
+  }
+
+  return {
+    punchCount: sum("punchCount"),
+    punchesPerMin: avg("punchesPerMin"),
+    guardUpRatio: avg("guardUpRatio"),
+    stanceWidthRatio: avg("stanceWidthRatio"),
+    highActivityRatio: avg("highActivityRatio"),
+    detectRate: avg("detectRate"),
+    evadeCount: sum("evadeCount"),
+    punchTypes: Object.keys(punchTypes).length ? punchTypes : undefined
+  };
+}
+
 export async function analyzeSession(
   prisma: PrismaClient,
   videoId: string,
@@ -33,10 +73,49 @@ export async function analyzeSession(
   });
   if (!session) throw new Error(`训练记录不存在：${sessionId}`);
 
-  const segments = await prisma.videoSegment.findMany({
-    where: { videoId },
-    orderBy: { startMs: "asc" }
+  // 报告是 session 级聚合产物：取该训练下所有视频，等所有视频处理完再生成，
+  // 避免“谁先 ready 谁先生成只含单视频的半成品报告”。
+  const videos = await prisma.video.findMany({
+    where: { sessionId, deletedAt: null, objectKey: { not: "" } },
+    orderBy: { createdAt: "asc" }
   });
+
+  const pending = videos.filter(
+    (v) => v.status === "uploaded" || v.status === "processing"
+  );
+  if (pending.length > 0) {
+    console.log(
+      `[ai-worker] session ${sessionId} 仍有 ${pending.length} 个视频处理中，` +
+        `暂不生成报告（待最后一个视频 ready 触发，trigger=${videoId}）`
+    );
+    return;
+  }
+
+  const readyVideos = videos.filter((v) => v.status === "ready");
+  if (readyVideos.length === 0) {
+    console.log(`[ai-worker] session ${sessionId} 无 ready 视频，跳过`);
+    return;
+  }
+  const readyVideoIds = readyVideos.map((v) => v.id);
+
+  // 聚合该 session 下所有 ready 视频的片段（按视频创建序 + 片段起点排序）
+  const videoOrder = new Map(readyVideoIds.map((id, i) => [id, i]));
+  const segments = (
+    await prisma.videoSegment.findMany({
+      where: { videoId: { in: readyVideoIds } }
+    })
+  ).sort((a, b) => {
+    const va = videoOrder.get(a.videoId) ?? 0;
+    const vb = videoOrder.get(b.videoId) ?? 0;
+    return va !== vb ? va - vb : a.startMs - b.startMs;
+  });
+
+  // 聚合所有 ready 视频的姿态指标（trigger 视频的指标已落库，统一从 DB 取）
+  const allMetrics = readyVideos
+    .map((v) => v.poseMetrics as PoseMetrics | null)
+    .filter((m): m is PoseMetrics => Boolean(m));
+  const aggregatedPose =
+    aggregatePoseMetrics(allMetrics) ?? poseMetrics ?? undefined;
 
   const input: ReportDraftInput = {
     trainingType: session.trainingType as TrainingType,
@@ -48,7 +127,7 @@ export async function analyzeSession(
       tags: s.tags,
       metrics: (s.metrics ?? undefined) as SegmentMetrics | undefined
     })),
-    poseMetrics
+    poseMetrics: aggregatedPose
   };
 
   let output: ReportDraftOutput;
@@ -105,6 +184,8 @@ export async function analyzeSession(
   });
 
   console.log(
-    `[ai-worker] session ${sessionId} draft 完成（${modelVersion}，${output.items.length} 条，${output.scores.length} 维评分）`
+    `[ai-worker] session ${sessionId} draft 完成（${modelVersion}，` +
+      `${readyVideos.length} 个视频，${segments.length} 个片段，` +
+      `${output.items.length} 条，${output.scores.length} 维评分）`
   );
 }

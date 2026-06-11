@@ -41,6 +41,23 @@ export function SessionHeader({
   const ready = videos.filter((v) => v.status === "ready");
   const totalMs = ready.reduce((sum, v) => sum + (v.durationMs ?? 0), 0);
   const segmentCount = videos.reduce((sum, v) => sum + (v.segmentCount ?? 0), 0);
+  const punchCount = ready.reduce(
+    (sum, v) => sum + (v.poseMetrics?.punchCount ?? 0),
+    0
+  );
+  const hasPunch = ready.some((v) => typeof v.poseMetrics?.punchCount === "number");
+
+  // 只展示有真实数据的指标，避免长期空占位
+  const stats: { value: string; label: string; accent?: boolean }[] = [
+    { value: fmtDuration(totalMs), label: "训练时长", accent: true },
+    { value: String(segmentCount), label: "关键片段" }
+  ];
+  if (hasPunch) {
+    stats.push({ value: String(punchCount), label: "出拳次数" });
+  }
+  if (session.durationMin != null) {
+    stats.push({ value: `${session.durationMin} 分钟`, label: "记录时长" });
+  }
 
   return (
     <Module className="!mb-4" bodyClassName="px-5 py-[18px]">
@@ -54,16 +71,23 @@ export function SessionHeader({
             weekday: "short"
           })}
         </span>
+        {session.location && <span>· {session.location}</span>}
       </div>
       <h1 className="text-[22px] font-bold tracking-tight">{session.title}</h1>
-      {session.userNote && (
-        <div className="mt-1 text-[13.5px] text-ink-2">{session.userNote}</div>
+      {session.focus && (
+        <div className="mt-1 text-[13.5px] text-ink-2">
+          本次重点：{session.focus}
+        </div>
       )}
       <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        <StatBox value={fmtDuration(totalMs)} label="训练时长" accent />
-        <StatBox value="—" label="回合数" />
-        <StatBox value="—" label="出拳数" />
-        <StatBox value={String(segmentCount)} label="关键片段" />
+        {stats.map((s) => (
+          <StatBox
+            key={s.label}
+            value={s.value}
+            label={s.label}
+            accent={s.accent}
+          />
+        ))}
       </div>
     </Module>
   );

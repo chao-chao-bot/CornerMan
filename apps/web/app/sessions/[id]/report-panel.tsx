@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { App, Popconfirm, Select, Spin } from "antd";
 import type {
   AnalysisReportItem,
+  ReportCoverage,
   ReportDTO,
   ScoreDimension,
   SessionReportDTO
@@ -16,13 +17,27 @@ import {
   SCORE_DIMENSION_ORDER
 } from "../../lib/labels";
 import { ScoreBoard } from "./score-board";
-import type { EvidenceRef, LocateRequest } from "./types";
+import {
+  buildVideoIndexMap,
+  type EvidenceRef,
+  type LocateRequest,
+  type ReportProgress
+} from "./types";
 
-type SegmentInfo = { videoId: string; startMs: number; endMs: number };
+type SegmentInfo = {
+  videoId: string;
+  startMs: number;
+  endMs: number;
+  /** 视频序号（多视频时展示，1 起）；按上传时间升序 */
+  videoIndex?: number;
+};
 
-function fmtSeg(seg?: SegmentInfo): string | null {
+function fmtSeg(seg?: SegmentInfo, multiVideo?: boolean): string | null {
   if (!seg) return null;
-  return `${(seg.startMs / 1000).toFixed(1)}–${(seg.endMs / 1000).toFixed(1)}s`;
+  const time = `${(seg.startMs / 1000).toFixed(1)}–${(seg.endMs / 1000).toFixed(1)}s`;
+  return multiVideo && seg.videoIndex
+    ? `视频 ${seg.videoIndex} · ${time}`
+    : time;
 }
 
 function fmtReviewedAt(iso: string): string {
@@ -67,6 +82,9 @@ export function ReportPanel({
   onSeek,
   onEvidence,
   onCompleted,
+  onProgress,
+  onCoverage,
+  onRegenerate,
   locate
 }: {
   sessionId: string;
@@ -79,6 +97,12 @@ export function ReportPanel({
   onEvidence?: (refs: EvidenceRef[]) => void;
   /** 完成复盘后通知父级刷新 session（更新 reviewedAt） */
   onCompleted?: () => void;
+  /** 上抛复盘进度，供详情页阶段条/CTA 使用 */
+  onProgress?: (p: ReportProgress) => void;
+  /** 上抛报告覆盖范围（多视频/补传纳入状态） */
+  onCoverage?: (c: ReportCoverage | null) => void;
+  /** 重新生成完整复盘（用全部视频重跑），由父级统一处理 */
+  onRegenerate?: () => Promise<void>;
   /** 视频侧时间线点击证据片段 → 定位到对应条目/评分 */
   locate?: LocateRequest | null;
 }) {
@@ -90,7 +114,10 @@ export function ReportPanel({
   const [busy, setBusy] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [showHandled, setShowHandled] = useState(false);
   const [flashKey, setFlashKey] = useState<string | null>(null);
+  const [videoCount, setVideoCount] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // 已采纳的条目 key（revision action=accept），用于「已采纳」禁用态
@@ -115,12 +142,19 @@ export function ReportPanel({
   const loadSegments = useCallback(async () => {
     try {
       const videos = await api.listSessionVideos(sessionId);
+      setVideoCount(videos.length);
+      const indexMap = buildVideoIndexMap(videos);
       const ready = videos.filter((v) => v.status === "ready");
       const map: Record<string, SegmentInfo> = {};
       for (const v of ready) {
         const detail = await api.getVideo(v.id);
         for (const s of detail.segments ?? []) {
-          map[s.id] = { videoId: v.id, startMs: s.startMs, endMs: s.endMs };
+          map[s.id] = {
+            videoId: v.id,
+            startMs: s.startMs,
+            endMs: s.endMs,
+            videoIndex: indexMap.get(v.id)
+          };
         }
       }
       setSegMap(map);
@@ -175,6 +209,35 @@ export function ReportPanel({
   const draftItemMap = new Map<string, AnalysisReportItem>(
     (report?.draft?.items ?? []).map((it) => [it.key, it])
   );
+
+  // 条目是否「已处理」：用户新增 / 已采纳 / 在 AI 原文基础上改过
+  function isHandled(item: AnalysisReportItem): boolean {
+    if (item.key.startsWith("user-")) return true;
+    if (acceptedKeys.has(item.key)) return true;
+    const ai = draftItemMap.get(item.key);
+    if (ai && (ai.title !== item.title || ai.detail !== item.detail)) {
+      return true;
+    }
+    return false;
+  }
+  const activeItems = active?.items ?? [];
+  const pendingItems = activeItems.filter((it) => !isHandled(it));
+  const handledItems = activeItems.filter((it) => isHandled(it));
+
+  // 上抛复盘进度（阶段条 / CTA）
+  useEffect(() => {
+    onProgress?.({
+      hasDraft: Boolean(report?.draft),
+      hasFinal: Boolean(report?.final),
+      totalItems: activeItems.length,
+      handledItems: handledItems.length
+    });
+  }, [onProgress, report, activeItems.length, handledItems.length]);
+
+  // 上抛报告覆盖范围（供视频卡片标识纳入状态）
+  useEffect(() => {
+    onCoverage?.(report?.coverage ?? null);
+  }, [onCoverage, report?.coverage]);
 
   // 汇总复盘条目引用的证据片段（带反向定位键），上抛给主区时间线。
   // 评分证据（Score.evidenceSegmentIds）噪音大，不进证据轨。
@@ -233,6 +296,22 @@ export function ReportPanel({
     }
   }
 
+  async function handleRegenerate(): Promise<void> {
+    if (!onRegenerate) return;
+    setRegenerating(true);
+    try {
+      await onRegenerate();
+      setError(null);
+      message.success("已开始用全部视频重新生成复盘，请稍候");
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "重新生成失败";
+      setError(msg);
+      message.error(msg);
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
   async function handleComplete(): Promise<void> {
     setCompleting(true);
     try {
@@ -277,11 +356,109 @@ export function ReportPanel({
     );
   }
 
+  const activeReport = active;
+  const coverage = report?.coverage ?? null;
+  const unincludedCount = coverage?.unincludedVideoIds.length ?? 0;
+  const staleEvidence = coverage?.staleEvidence ?? false;
+  const multiVideo = videoCount > 1;
+  const renderItemCard = (item: AnalysisReportItem) => (
+    <ReportItemCard
+      key={item.key}
+      item={item}
+      seg={item.segmentId ? segMap[item.segmentId] : undefined}
+      multiVideo={multiVideo}
+      aiOriginal={draftItemMap.get(item.key)}
+      busy={busy}
+      itemBusy={busyKey === item.key}
+      accepted={acceptedKeys.has(item.key)}
+      flash={flashKey === item.key}
+      onSeek={onSeek}
+      onAccept={() =>
+        runRevision(
+          () =>
+            api.createRevision(activeReport.id, {
+              itemKey: item.key,
+              action: "accept"
+            }),
+          item.key,
+          "已采纳"
+        )
+      }
+      onEdit={(title, detail) =>
+        runRevision(
+          () =>
+            api.createRevision(activeReport.id, {
+              itemKey: item.key,
+              action: "edit",
+              title,
+              detail
+            }),
+          item.key,
+          "修改已保存"
+        )
+      }
+      onDelete={() =>
+        runRevision(
+          () =>
+            api.createRevision(activeReport.id, {
+              itemKey: item.key,
+              action: "delete"
+            }),
+          item.key,
+          "已删除该条目"
+        )
+      }
+    />
+  );
+
   return (
     <div>
       {error && (
         <div className="mb-3 rounded-sm border border-risk-line bg-risk-soft px-3 py-2 text-[12.5px] text-risk">
           {error}
+        </div>
+      )}
+
+      {/* 证据失效 / 补传视频未纳入 的提示 + 重新生成完整复盘 */}
+      {(staleEvidence || unincludedCount > 0) && onRegenerate && (
+        <div
+          className={`mb-3 rounded border px-3 py-2.5 ${
+            staleEvidence
+              ? "border-risk-line bg-risk-soft"
+              : "border-revise-line bg-revise-soft"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <span
+              className={`text-[12.5px] font-medium ${
+                staleEvidence ? "text-risk" : "text-revise"
+              }`}
+            >
+              {staleEvidence
+                ? "报告引用的片段已失效，证据无法跳转"
+                : `有 ${unincludedCount} 个新视频尚未纳入当前复盘`}
+            </span>
+            <button
+              type="button"
+              onClick={handleRegenerate}
+              disabled={regenerating}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-brand bg-brand px-3 py-1.5 text-[12.5px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {regenerating && (
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              )}
+              {regenerating
+                ? "生成中…"
+                : reviewedAt
+                  ? "用全部视频重新复盘"
+                  : "重新生成完整复盘"}
+            </button>
+          </div>
+          <p className="mt-1.5 text-[11.5px] leading-relaxed text-ink-3">
+            {staleEvidence
+              ? "视频被重新处理后片段已变化，当前报告引用的是旧片段。重新生成会用本次训练的全部视频重建报告与证据；原始视频保留。"
+              : "报告是整次训练的复盘。重新生成会作废当前 AI 草稿/修订，并用本次训练的全部视频重建；原始视频保留。"}
+          </p>
         </div>
       )}
 
@@ -301,7 +478,9 @@ export function ReportPanel({
         ) : (
           <>
             <span className="text-[12.5px] text-ink-2">
-              逐条采纳或修改后，点「完成复盘」归档本次训练
+              {pendingItems.length > 0
+                ? `还有 ${pendingItems.length} 条待处理，也可直接「完成复盘」归档`
+                : "已逐条处理，点「完成复盘」归档本次训练"}
             </span>
             <button
               type="button"
@@ -338,59 +517,35 @@ export function ReportPanel({
         )}
       </div>
 
-      {/* 复盘条目 */}
-      <PanelTitle count={`${active.items.length} 条`}>复盘条目</PanelTitle>
+      {/* 复盘条目：待处理优先，已处理折叠 */}
+      <PanelTitle count={`待处理 ${pendingItems.length} / 共 ${activeItems.length}`}>
+        复盘条目
+      </PanelTitle>
       <div>
-        {active.items.map((item) => (
-          <ReportItemCard
-            key={item.key}
-            item={item}
-            seg={item.segmentId ? segMap[item.segmentId] : undefined}
-            aiOriginal={draftItemMap.get(item.key)}
-            busy={busy}
-            itemBusy={busyKey === item.key}
-            accepted={acceptedKeys.has(item.key)}
-            flash={flashKey === item.key}
-            onSeek={onSeek}
-            onAccept={() =>
-              runRevision(
-                () =>
-                  api.createRevision(active.id, {
-                    itemKey: item.key,
-                    action: "accept"
-                  }),
-                item.key,
-                "已采纳"
-              )
-            }
-            onEdit={(title, detail) =>
-              runRevision(
-                () =>
-                  api.createRevision(active.id, {
-                    itemKey: item.key,
-                    action: "edit",
-                    title,
-                    detail
-                  }),
-                item.key,
-                "修改已保存"
-              )
-            }
-            onDelete={() =>
-              runRevision(
-                () =>
-                  api.createRevision(active.id, {
-                    itemKey: item.key,
-                    action: "delete"
-                  }),
-                item.key,
-                "已删除该条目"
-              )
-            }
-          />
-        ))}
-        {active.items.length === 0 && (
+        {pendingItems.map(renderItemCard)}
+        {pendingItems.length === 0 && activeItems.length > 0 && (
+          <p className="rounded border border-improved-line bg-improved-soft px-3 py-2.5 text-[12.5px] text-improved">
+            ✓ 所有 AI 条目都已处理，可以「完成复盘」了
+          </p>
+        )}
+        {activeItems.length === 0 && (
           <p className="text-[13px] text-ink-3">暂无条目。</p>
+        )}
+
+        {handledItems.length > 0 && (
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => setShowHandled((v) => !v)}
+              className="flex w-full items-center justify-between rounded-sm border border-line bg-surface-2 px-3 py-2 text-[12.5px] text-ink-2 hover:text-ink"
+            >
+              <span>已处理 {handledItems.length} 条</span>
+              <span className="text-ink-3">{showHandled ? "收起" : "展开"}</span>
+            </button>
+            {showHandled && (
+              <div className="mt-2.5">{handledItems.map(renderItemCard)}</div>
+            )}
+          </div>
         )}
       </div>
 
@@ -452,6 +607,7 @@ export function ReportPanel({
 function ReportItemCard({
   item,
   seg,
+  multiVideo,
   aiOriginal,
   busy,
   itemBusy,
@@ -464,6 +620,8 @@ function ReportItemCard({
 }: {
   item: AnalysisReportItem;
   seg?: SegmentInfo;
+  /** 多视频时证据 chip 展示视频序号 */
+  multiVideo?: boolean;
   aiOriginal?: AnalysisReportItem;
   busy: boolean;
   /** 本条目正在提交修订 */
@@ -485,7 +643,7 @@ function ReportItemCard({
   const changed =
     aiOriginal &&
     (aiOriginal.title !== item.title || aiOriginal.detail !== item.detail);
-  const segLabel = fmtSeg(seg);
+  const segLabel = fmtSeg(seg, multiVideo);
 
   return (
     <div

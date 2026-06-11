@@ -70,6 +70,7 @@ P0 基建 ✅ → P1 账号+训练记录 ✅ → P2 视频上传+处理 ✅ → 
 
 - [x] `ai-prompts`：报告起草 prompt 模板（结构化输入 → summary/items/scores 严格 JSON）+ `renderReportDraftPrompt` + 版本号，改为 build 到 dist
 - [x] 打通 `video-worker（第二个 ai.analyze Worker）→ DeepSeek/stub → AnalysisReport(draft) + Score(ai)`，附证据片段引用，按 session 幂等
+- [x] 报告改为 **session 级聚合**（体验修正）：`analyzeSession()` 聚合该训练下全部 ready 视频的片段与姿态指标，等所有视频处理完再生成完整 draft；补传视频不静默改写，由用户「重新生成完整复盘」
 - [x] `api/reports`：`draft` 只读快照 + `final` 可编辑两层组装与读写（GET 聚合 + finalize 懒克隆）
 - [x] `api/scoring`：7 维评分（AI 原始分 + 置信度 + 用户修订分并存），返回 `score/confidence/rationale/evidence`
 - [x] `api/revisions`：逐条「采纳 / 修改 / 删除 / 新增」，保留 AI 原文（aiOriginal 快照）
@@ -83,6 +84,7 @@ P0 基建 ✅ → P1 账号+训练记录 ✅ → P2 视频上传+处理 ✅ → 
 对应 PRD US5/US8 与「片段库 / 问题追踪」。
 
 - [x] `ai-service` 真实姿态分析（提前启动）：MediaPipe Pose（CPU）+ OpenCV ~8fps 采样，产出动作片段（punch_burst / high_activity / low_activity）与量化指标（出拳次数、护手到位率、站距、活动占比）；`video-worker` 切片改为动作驱动（ai-service 失败/降级自动回退机械切片），姿态指标经 job payload 进 LLM prompt
+- [x] 多视频 / 补传报告覆盖状态（体验修正）：`reports` 返回 `coverage`（已纳入 / 未纳入视频），视频卡片标注「已纳入 / 未纳入复盘」、报告顶部提示「N 个新视频尚未纳入」并提供「重新生成完整复盘」，证据片段与视频标题统一「视频 N」序号
 - [ ] 片段库：收藏、打标签、写一句话备注、按标签检索
 - [ ] `api/problem-threads`：同类问题跨训练串联，状态机（已改进 / 仍存在 / 新增），含出现次数与改进证据
 - [ ] `web`：片段库页与问题追踪页

@@ -47,6 +47,7 @@ export default function NewSessionPage() {
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showMore, setShowMore] = useState(false);
 
   function addFiles(picked: File[]) {
     setFiles((prev) => [
@@ -139,7 +140,7 @@ export default function NewSessionPage() {
         取消
       </Button>
       <Button variant="primary" onClick={onSave} disabled={saving}>
-        {saving ? "保存中…" : "保存并开始分析"}
+        {saving ? "保存中…" : "开始 AI 复盘"}
       </Button>
     </div>
   );
@@ -155,15 +156,6 @@ export default function NewSessionPage() {
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <Module head="训练信息" meta="约 1 分钟">
-          <Field label="标题（可选）" htmlFor="title">
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="留空将自动用「本次重点」或「类型 + 日期」"
-            />
-          </Field>
-
           <Field label="训练类型">
             <SegControl
               value={trainingType}
@@ -175,36 +167,14 @@ export default function NewSessionPage() {
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="日期">
-              <DatePicker
-                value={date}
-                onChange={(d) => d && setDate(d)}
-                allowClear={false}
-                format="YYYY-MM-DD"
-                className="w-full"
-                placeholder="选择训练日期"
-              />
-            </Field>
-            <Field label="时长（分钟）" htmlFor="duration">
-              <Input
-                id="duration"
-                inputMode="numeric"
-                value={durationMin}
-                onChange={(e) =>
-                  setDurationMin(e.target.value.replace(/[^0-9]/g, ""))
-                }
-                placeholder="例如 48"
-              />
-            </Field>
-          </div>
-
-          <Field label="地点" htmlFor="location">
-            <Input
-              id="location"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="例如 中拳道拳馆"
+          <Field label="日期">
+            <DatePicker
+              value={date}
+              onChange={(d) => d && setDate(d)}
+              allowClear={false}
+              format="YYYY-MM-DD"
+              className="w-full"
+              placeholder="选择训练日期"
             />
           </Field>
 
@@ -226,6 +196,46 @@ export default function NewSessionPage() {
               rows={3}
             />
           </Field>
+
+          <button
+            type="button"
+            onClick={() => setShowMore((v) => !v)}
+            className="mt-1 text-[12.5px] text-ink-2 hover:text-brand"
+          >
+            {showMore ? "收起更多信息" : "更多信息（标题 / 时长 / 地点）"}
+          </button>
+
+          {showMore && (
+            <div className="mt-2 grid gap-3 border-t border-line pt-3">
+              <Field label="标题（可选）" htmlFor="title">
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="留空将自动用「本次重点」或「类型 + 日期」"
+                />
+              </Field>
+              <Field label="时长（分钟）" htmlFor="duration">
+                <Input
+                  id="duration"
+                  inputMode="numeric"
+                  value={durationMin}
+                  onChange={(e) =>
+                    setDurationMin(e.target.value.replace(/[^0-9]/g, ""))
+                  }
+                  placeholder="例如 48"
+                />
+              </Field>
+              <Field label="地点" htmlFor="location">
+                <Input
+                  id="location"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="例如 中拳道拳馆"
+                />
+              </Field>
+            </div>
+          )}
         </Module>
 
         <Module head="训练视频" meta="支持多个 · 保存后自动处理">
