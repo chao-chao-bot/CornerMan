@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>CornerMan · 移动端设计 Demo</title>
+<link rel="stylesheet" href="mobile.css" />
+</head>
+<body>
+
+<div class="preview-head">
+  <div class="brand"><span class="mark">C</span>CornerMan 拳角 · 移动端设计预览</div>
+  <p>暗色优先 · 对抗疲劳：大触控区 / 防误触 / 免等待 / 少层级 · 对应 docs/mobile-design.md</p>
+  <div class="screen-switch" id="screenSwitch">
+    <button data-go="home" class="active">首页</button>
+    <button data-go="editor">复盘编辑</button>
+    <button data-go="builder">我的模板</button>
+  </div>
+</div>
+
+<div class="phone">
+  <div class="statusbar">
+    <span>9:41</span>
+    <span class="right">5G &nbsp; 100%</span>
+  </div>
+
+  <div class="viewport">
+
+    <!-- ============ 首页：训练列表 + FAB ============ -->
+    <section class="screen active" id="home">
+      <div class="page-head">
+        <h1>训练记录</h1>
+        <div class="sub">本周已记录 3 次 · 继续保持</div>
+      </div>
+
+      <div class="week-strip">
+        <div class="week-box"><div class="v">3</div><div class="l">本周训练</div></div>
+        <div class="week-box"><div class="v">4.2h</div><div class="l">累计时长</div></div>
+        <div class="week-box"><div class="v">12</div><div class="l">视频素材</div></div>
+      </div>
+
+      <div class="group-label">最近</div>
+
+      <div class="session-card" data-go="editor">
+        <div class="thumb has-video">🥊</div>
+        <div class="body">
+          <div class="title">jab 后快速回防 + 后撤步</div>
+          <div class="meta"><span class="tag blue">私教课</span><span>今天 · 60min</span></div>
+        </div>
+      </div>
+
+      <div class="session-card" data-go="editor">
+        <div class="thumb has-video">🔥</div>
+        <div class="body">
+          <div class="title">约练实战 3 回合</div>
+          <div class="meta"><span class="tag orange">实战</span><span>周三 · 45min</span></div>
+        </div>
+      </div>
+
+      <div class="session-card" data-go="editor">
+        <div class="thumb">💪</div>
+        <div class="body">
+          <div class="title">沙袋专项 + 体能</div>
+          <div class="meta"><span class="tag green">自训</span><span>周一 · 50min</span></div>
+        </div>
+      </div>
+
+      <button class="fab" id="fabBtn" aria-label="新建记录">+</button>
+
+      <div class="tabbar">
+        <div class="tab active"><span class="ic">🏠</span>记录</div>
+        <div class="tab" data-go="builder"><span class="ic">🧩</span>模板</div>
+        <div class="tab"><span class="ic">📈</span>趋势</div>
+        <div class="tab"><span class="ic">👤</span>我的</div>
+      </div>
+    </section>
+
+    <!-- ============ 编辑器：Session Notebook ============ -->
+    <section class="screen" id="editor">
+      <div class="editor-top">
+        <button class="icon-btn" data-go="home" aria-label="返回">‹</button>
+        <span class="save-chip" id="saveChip"><span class="dot"></span>已保存</span>
+      </div>
+
+      <div class="session-meta-head">
+        <h2>私教课复盘</h2>
+        <div class="row">
+          <span class="tag blue">私教课</span>
+          <span class="tag">今天 16:30</span>
+          <span class="tag">拳馆 · 60min</span>
+        </div>
+      </div>
+
+      <!-- Block: 富文本 -->
+      <div class="block" data-block>
+        <div class="b-title"><span class="bar"></span>教练重点纠错 <span class="req">*</span></div>
+        <div class="editable" contenteditable="true" data-ph="记录教练指出的问题、改法和关键词…">jab 出完左手回位太慢，被反击两次。教练让我打完立刻把手收回护住下巴。</div>
+      </div>
+
+      <!-- Block: 富文本 -->
+      <div class="block" data-block>
+        <div class="b-title"><span class="bar"></span>今日新学技术</div>
+        <div class="editable" contenteditable="true" data-ph="今天新学或重点打磨的动作…"></div>
+      </div>
+
+      <!-- Block: 评分 -->
+      <div class="block rating" data-block>
+        <div class="b-title"><span class="bar"></span>体能消耗</div>
+        <div class="stars" id="ratingStars">
+          <span class="s on">★</span><span class="s on">★</span><span class="s on">★</span><span class="s on">★</span><span class="s">★</span>
+        </div>
+      </div>
+
+      <!-- Block: 课后总结 -->
+      <div class="block" data-block>
+        <div class="b-title"><span class="bar"></span>课后总结</div>
+        <div class="editable" contenteditable="true" data-ph="整体感受、下次重点…"></div>
+      </div>
+
+      <!-- 媒体附件 -->
+      <div class="media-area">
+        <div class="b-title" style="font-size:13.5px;font-weight:700;color:var(--ink-2);">训练视频与图片</div>
+        <p class="section-note">选完即可继续写文字，视频在后台上传转码，不用等待。</p>
+        <div class="media-grid" id="mediaGrid">
+          <div class="media-cell">
+            <div style="font-size:24px;">🥊</div>
+            <span class="badge ready">已就绪</span>
+          </div>
+          <div class="media-cell add" id="addMedia">
+            <span class="plus">+</span>
+            添加视频
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 我的模板 Builder ============ -->
+    <section class="screen" id="builder">
+      <div class="editor-top">
+        <button class="icon-btn" data-go="home" aria-label="返回">‹</button>
+        <span style="font-weight:800;font-size:17px;">编辑模板</span>
+      </div>
+
+      <div class="session-meta-head" style="margin-bottom:6px;">
+        <h2 contenteditable="true" class="editable" style="font-size:22px;font-weight:800;" data-ph="模板名称">力量体能训练</h2>
+        <p class="section-note">点击下方字段即可加入模板，长按 ⠿ 拖动排序。</p>
+      </div>
+
+      <div class="group-label" style="margin-top:14px;">字段库</div>
+      <div class="field-lib" id="fieldLib">
+        <button class="field-chip" data-name="自由文本" data-type="富文本"><span class="plus">+</span>自由文本</button>
+        <button class="field-chip" data-name="体能评分" data-type="评分 1-5"><span class="plus">+</span>体能评分</button>
+        <button class="field-chip" data-name="回合数记录" data-type="单行文本"><span class="plus">+</span>回合数记录</button>
+        <button class="field-chip" data-name="动作清单" data-type="勾选列表"><span class="plus">+</span>动作清单</button>
+        <button class="field-chip" data-name="训练视频" data-type="媒体引用"><span class="plus">+</span>训练视频</button>
+      </div>
+
+      <div class="group-label">当前模板字段</div>
+      <div class="builder-canvas" id="builderCanvas">
+        <div class="builder-item">
+          <span class="handle">⠿</span>
+          <div class="info"><div class="n">热身 / 空击组数</div><div class="t">单行文本</div></div>
+          <button class="del" aria-label="删除">×</button>
+        </div>
+        <div class="builder-item">
+          <span class="handle">⠿</span>
+          <div class="info"><div class="n">专项训练内容</div><div class="t">富文本</div></div>
+          <button class="del" aria-label="删除">×</button>
+        </div>
+        <div class="builder-item">
+          <span class="handle">⠿</span>
+          <div class="info"><div class="n">体能评分</div><div class="t">评分 1-5</div></div>
+          <button class="del" aria-label="删除">×</button>
+        </div>
+      </div>
+
+      <button class="primary-btn" id="saveTmpl">保存模板</button>
+      <button class="ghost-btn" data-go="home">取消</button>
+    </section>
+
+    <!-- ============ Bottom Sheet：模板选择 ============ -->
+    <div class="scrim" id="scrim"></div>
+    <div class="sheet" id="sheet">
+      <div class="grabber"></div>
+      <h2>记录哪种训练？</h2>
+      <div class="sheet-sub">选一个模板，直接开始写，不用从空白页开始</div>
+
+      <button class="tmpl-card" data-go="editor">
+        <span class="icon t1">🥊</span>
+        <span><span class="tt">私教课</span><span class="dd">教练指导与纠错</span></span>
+        <span class="recent">最近</span>
+      </button>
+      <button class="tmpl-card" data-go="editor">
+        <span class="icon t2">🔥</span>
+        <span><span class="tt">实战</span><span class="dd">对手分析 · 防守漏洞 · 高光</span></span>
+        <span class="chev">›</span>
+      </button>
+      <button class="tmpl-card" data-go="editor">
+        <span class="icon t3">💪</span>
+        <span><span class="tt">自训</span><span class="dd">空击 · 沙袋 · 专项体能</span></span>
+        <span class="chev">›</span>
+      </button>
+      <button class="tmpl-card" data-go="builder">
+        <span class="icon t4">🧩</span>
+        <span><span class="tt">力量体能训练</span><span class="dd">我的模板</span></span>
+        <span class="chev">›</span>
+      </button>
+    </div>
+
+    <!-- 软键盘工具条 -->
+    <div class="kbd-toolbar" id="kbdToolbar">
+      <button class="kb" data-cmd="bold">B</button>
+      <button class="kb" data-cmd="insertUnorderedList">•</button>
+      <button class="kb" data-cmd="formatBlock-h3">H</button>
+      <button class="kb hl" data-cmd="hilite">✎</button>
+      <button class="done" id="kbdDone">收起</button>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

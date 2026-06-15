@@ -1,0 +1,1137 @@
+/* ============================================================
+   CornerMan · Apple HIG 风格（Web 适配版）
+   令牌与组件类对齐 design-preview/ios-hig/hig.css，去掉手机外壳，
+   作为真实响应式页面使用。所有规则都以 .hig 作用域，避免与
+   现有 Coach Lab 桌面样式冲突。浅/深色由 .hig[data-theme] 控制。
+   ============================================================ */
+
+.hig {
+  /* ---------- 浅色（默认） ---------- */
+  --system-bg: #ffffff;
+  --grouped-bg: #f2f2f7;
+  --grouped-cell: #ffffff;
+  --fill: rgba(120, 120, 128, 0.12);
+  --fill-2: rgba(120, 120, 128, 0.2);
+  --separator: rgba(60, 60, 67, 0.29);
+  --separator-opaque: #c6c6c8;
+
+  --label: #000000;
+  --label-2: rgba(60, 60, 67, 0.6);
+  --label-3: rgba(60, 60, 67, 0.3);
+
+  --blue: #007aff;
+  --green: #34c759;
+  --red: #ff3b30;
+  --orange: #ff9500;
+  --purple: #af52de;
+  --teal: #30b0c7;
+
+  --nav-material: rgba(249, 249, 249, 0.82);
+  --sheet-bg: #ffffff;
+  --scrim: rgba(0, 0, 0, 0.4);
+
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "SF Pro Display", "Helvetica Neue", "PingFang SC", sans-serif;
+  font-size: 17px;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  color: var(--label);
+  background: var(--grouped-bg);
+  min-height: 100vh;
+}
+
+.hig[data-theme="dark"] {
+  --system-bg: #000000;
+  --grouped-bg: #000000;
+  --grouped-cell: #1c1c1e;
+  --fill: rgba(120, 120, 128, 0.24);
+  --fill-2: rgba(120, 120, 128, 0.36);
+  --separator: rgba(84, 84, 88, 0.6);
+  --separator-opaque: #38383a;
+
+  --label: #ffffff;
+  --label-2: rgba(235, 235, 245, 0.6);
+  --label-3: rgba(235, 235, 245, 0.3);
+
+  --blue: #0a84ff;
+  --green: #30d158;
+  --red: #ff453a;
+  --orange: #ff9f0a;
+  --purple: #bf5af2;
+  --teal: #40c8e0;
+
+  --nav-material: rgba(30, 30, 30, 0.74);
+  --sheet-bg: #1c1c1e;
+  --scrim: rgba(0, 0, 0, 0.5);
+}
+
+.hig * {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 居中的移动优先容器；桌面也保持单列阅读宽度 */
+.hig-page {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding-bottom: 48px;
+}
+
+/* ---------- 顶部导航（材质 + 标题 + 左右按钮） ---------- */
+.hig-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  padding: 8px 12px;
+  background: var(--nav-material);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 0.5px solid var(--separator);
+}
+.hig-nav .nav-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+.hig-nav .nav-leading,
+.hig-nav .nav-trailing {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.hig-nav .nav-leading {
+  left: 8px;
+}
+.hig-nav .nav-trailing {
+  right: 8px;
+}
+.hig-navbtn {
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  font-family: inherit;
+  font-size: 17px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  padding: 0 6px;
+}
+.hig-navbtn:disabled {
+  color: var(--label-3);
+  cursor: default;
+}
+.hig-navbtn.strong {
+  font-weight: 600;
+}
+
+/* ---------- 大标题 ---------- */
+.hig-large-title {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 12px 20px 8px;
+}
+.hig-large-title .sub {
+  display: block;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--label-2);
+  letter-spacing: -0.01em;
+  margin-top: 2px;
+}
+
+/* ---------- Inset Grouped 列表 ---------- */
+.hig-section-header {
+  font-size: 13px;
+  font-weight: 400;
+  text-transform: uppercase;
+  color: var(--label-2);
+  letter-spacing: 0.02em;
+  padding: 18px 32px 7px;
+}
+.hig-section-footer {
+  font-size: 13px;
+  color: var(--label-2);
+  padding: 7px 32px 0;
+  line-height: 1.35;
+}
+.hig-list {
+  background: var(--grouped-cell);
+  border-radius: 11px;
+  margin: 0 16px;
+  overflow: hidden;
+}
+.hig-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  min-height: 48px;
+  padding: 9px 16px;
+  position: relative;
+  background: var(--grouped-cell);
+  border: 0;
+  font-family: inherit;
+  color: var(--label);
+  cursor: pointer;
+  user-select: none;
+}
+.hig-row:active {
+  background: var(--fill);
+}
+.hig-row:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 56px;
+  right: 0;
+  bottom: 0;
+  height: 0.5px;
+  background: var(--separator);
+}
+.hig-row.no-inset-sep:not(:last-child)::after {
+  left: 16px;
+}
+.hig-row .leading-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+.hig-row .leading-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: #fff;
+}
+.hig-row .row-main {
+  flex: 1;
+  min-width: 0;
+}
+.hig-row .row-title {
+  font-size: 17px;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hig-row .row-sub {
+  font-size: 13px;
+  color: var(--label-2);
+  margin-top: 1px;
+}
+.hig-row .row-value {
+  font-size: 17px;
+  color: var(--label-2);
+  margin-left: auto;
+}
+.hig-row .chevron {
+  color: var(--label-3);
+  margin-left: auto;
+  display: flex;
+}
+.hig-row .chevron svg {
+  width: 17px;
+  height: 17px;
+  fill: var(--label-3);
+}
+.hig-row .row-value + .chevron {
+  margin-left: 6px;
+}
+
+/* 颜色填充工具类（SF Symbol 容器） */
+.hig .bg-blue { background: var(--blue); }
+.hig .bg-green { background: var(--green); }
+.hig .bg-red { background: var(--red); }
+.hig .bg-orange { background: var(--orange); }
+.hig .bg-purple { background: var(--purple); }
+.hig .bg-teal { background: var(--teal); }
+.hig .bg-gray { background: #8e8e93; }
+
+/* 类型徽标 */
+.hig-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: var(--fill);
+  color: var(--label-2);
+}
+.hig-pill.blue { color: var(--blue); background: rgba(0, 122, 255, 0.12); }
+.hig-pill.orange { color: var(--orange); background: rgba(255, 149, 0, 0.14); }
+.hig-pill.green { color: var(--green); background: rgba(52, 199, 89, 0.14); }
+.hig-pill.red { color: var(--red); background: rgba(255, 59, 48, 0.14); }
+
+/* ---------- 表单（grouped form） ---------- */
+.hig-form {
+  background: var(--grouped-cell);
+  border-radius: 11px;
+  margin: 0 16px;
+  overflow: hidden;
+}
+.hig-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 11px 16px;
+  background: var(--grouped-cell);
+  position: relative;
+}
+.hig-field:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 0;
+  bottom: 0;
+  height: 0.5px;
+  background: var(--separator);
+}
+.hig-field .fl {
+  font-size: 17px;
+  flex: 0 0 96px;
+}
+.hig-field input,
+.hig-field select {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 17px;
+  color: var(--label);
+  min-width: 0;
+}
+
+/* ---------- Block 编辑区 ---------- */
+.hig-block {
+  background: var(--grouped-cell);
+  border-radius: 11px;
+  margin: 0 16px 12px;
+  padding: 12px 16px 14px;
+}
+.hig-block .blk-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.hig-block .blk-label {
+  font-size: 13px;
+  color: var(--label-2);
+}
+.hig-block .blk-req {
+  font-size: 12px;
+  color: var(--red);
+}
+.hig-block .ce {
+  font-size: 17px;
+  outline: 0;
+  min-height: 24px;
+  line-height: 1.45;
+  color: var(--label);
+}
+.hig-block .ce:empty::before {
+  content: attr(data-ph);
+  color: var(--label-3);
+}
+.hig-block input.short {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 17px;
+  color: var(--label);
+}
+
+/* 富文本 (TipTap) */
+.hig-block .ProseMirror {
+  outline: 0;
+  min-height: 28px;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--label);
+}
+.hig-block .ProseMirror:focus {
+  outline: 0;
+}
+.hig-block .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--label-3);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.hig-block .ProseMirror h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 6px 0 2px;
+}
+.hig-block .ProseMirror ul,
+.hig-block .ProseMirror ol {
+  padding-left: 22px;
+  margin: 2px 0;
+}
+.hig-block .ProseMirror strong {
+  font-weight: 700;
+}
+.hig-block .ProseMirror mark {
+  background: rgba(255, 214, 10, 0.4);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+/* 富文本工具栏 */
+.hig-toolbar {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.hig-toolbar button {
+  min-width: 34px;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--fill);
+  color: var(--label);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.hig-toolbar button.on {
+  background: var(--blue);
+  color: #fff;
+}
+
+/* 评分（系统星标） */
+.hig-stars {
+  display: flex;
+  gap: 10px;
+}
+.hig-stars button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px;
+}
+.hig-stars svg {
+  width: 28px;
+  height: 28px;
+}
+.hig-stars .s {
+  fill: var(--fill-2);
+}
+.hig-stars .s.on {
+  fill: var(--orange);
+}
+
+/* 清单 checklist */
+.hig-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+}
+.hig-check .box {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  border-radius: 999px;
+  border: 1.5px solid var(--separator-opaque);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.hig-check .box.on {
+  background: var(--green);
+  border-color: var(--green);
+}
+.hig-check .box svg {
+  width: 14px;
+  height: 14px;
+  fill: #fff;
+}
+.hig-check input {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 17px;
+  color: var(--label);
+}
+
+/* ---------- 大按钮 ---------- */
+.hig-btn-filled {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 18px 16px 0;
+  height: 50px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--blue);
+  color: #fff;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.hig-btn-filled:active {
+  opacity: 0.85;
+}
+.hig-btn-filled:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.hig-btn-plain {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  font-family: inherit;
+  font-size: 17px;
+  cursor: pointer;
+}
+
+/* ---------- 分段控件 ---------- */
+.hig-seg {
+  display: inline-flex;
+  background: var(--fill);
+  border-radius: 9px;
+  padding: 2px;
+  gap: 2px;
+}
+.hig-seg button {
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 590;
+  color: var(--label);
+  padding: 7px 16px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.hig-seg button.on {
+  background: var(--grouped-cell);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* ---------- FAB ---------- */
+.hig-fab {
+  position: fixed;
+  right: max(20px, calc(50vw - 320px + 20px));
+  bottom: 28px;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--blue);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 122, 255, 0.4);
+  z-index: 50;
+}
+.hig-fab svg {
+  width: 28px;
+  height: 28px;
+  fill: #fff;
+}
+
+/* ---------- Sheet ---------- */
+.hig-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  z-index: 60;
+}
+.hig-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0 auto;
+  max-width: 640px;
+  background: var(--sheet-bg);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  z-index: 70;
+  min-height: 76vh;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.hig-sheet .grabber {
+  width: 36px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--label-3);
+  margin: 6px auto 0;
+  flex: 0 0 auto;
+}
+.hig-sheet .sheet-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 6px;
+}
+.hig-sheet .sheet-nav .t {
+  font-size: 17px;
+  font-weight: 600;
+}
+.hig-sheet .sheet-nav button {
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  font-family: inherit;
+  font-size: 17px;
+  cursor: pointer;
+  min-width: 44px;
+  text-align: left;
+}
+.hig-sheet .sheet-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 6px 0 max(20px, env(safe-area-inset-bottom));
+  background: var(--grouped-bg);
+}
+
+/* ---------- 保存状态条 ---------- */
+.hig-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--label-2);
+}
+.hig-save .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--label-3);
+}
+.hig-save.saving .dot { background: var(--orange); }
+.hig-save.saved .dot { background: var(--green); }
+.hig-save.error { color: var(--red); }
+.hig-save.error .dot { background: var(--red); }
+
+/* ---------- 底部 Tab Bar ---------- */
+.hig-page.with-tabbar {
+  padding-bottom: 96px;
+}
+.hig-tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  max-width: 640px;
+  height: 64px;
+  display: flex;
+  background: var(--nav-material);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-top: 0.5px solid var(--separator);
+  z-index: 45;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.hig-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--label-3);
+  font-size: 10px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.hig-tab svg {
+  width: 26px;
+  height: 26px;
+}
+.hig-tab.active {
+  color: var(--blue);
+}
+
+/* ---------- 统计行 ---------- */
+.hig-stat-row {
+  display: flex;
+  gap: 10px;
+  padding: 6px 16px 2px;
+}
+.hig-stat {
+  flex: 1;
+  background: var(--grouped-cell);
+  border-radius: 11px;
+  padding: 12px 10px;
+  text-align: center;
+}
+.hig-stat .v {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.hig-stat .v.blue { color: var(--blue); }
+.hig-stat .v.green { color: var(--green); }
+.hig-stat .l {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--label-2);
+}
+
+/* ---------- 列表行 trailing（成败 / 状态） ---------- */
+.hig-row .row-trailing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.hig-row .row-date {
+  font-size: 13px;
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 编辑模式删除 ---------- */
+.hig-row .del {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  border-radius: 999px;
+  background: var(--red);
+  border: 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+.hig-row .del svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ---------- 筛选行 ---------- */
+.hig-filter {
+  padding: 8px 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.hig-filter .dates {
+  display: flex;
+  gap: 8px;
+}
+.hig-filter .dates input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: var(--grouped-cell);
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--label);
+}
+.hig-clear {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* ---------- 登录品牌头 ---------- */
+.hig-auth {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  justify-content: center;
+  padding: 24px 0 40px;
+}
+.hig-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.hig-brand .mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--blue);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 19px;
+  font-weight: 800;
+}
+.hig-auth .tagline {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--label-2);
+}
+.hig-auth .auth-card {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 22px;
+}
+
+/* ---------- 媒体附件网格 ---------- */
+.hig-media {
+  background: var(--grouped-cell);
+  border-radius: 11px;
+  margin: 0 16px 12px;
+  padding: 12px;
+}
+.hig-media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.hig-mcell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--fill);
+  display: grid;
+  place-items: center;
+}
+.hig-mcell img,
+.hig-mcell video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.hig-mcell .ph {
+  font-size: 12px;
+  color: var(--label-2);
+  text-align: center;
+  padding: 6px;
+}
+.hig-mcell .ov {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 12px;
+  gap: 6px;
+  text-align: center;
+}
+.hig-mcell .ov.fail {
+  background: rgba(0, 0, 0, 0.6);
+}
+.hig-ring {
+  width: 40px;
+  height: 40px;
+  transform: rotate(-90deg);
+}
+.hig-ring circle {
+  fill: none;
+  stroke-width: 3.5;
+}
+.hig-ring .tk {
+  stroke: rgba(255, 255, 255, 0.3);
+}
+.hig-ring .br {
+  stroke: #fff;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.25s linear;
+}
+.hig-mcell .play-badge {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.hig-mcell .play-badge svg {
+  width: 16px;
+  height: 16px;
+  fill: #fff;
+}
+.hig-mcell .corner-del {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 0;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 2;
+}
+.hig-mcell .corner-del svg {
+  width: 13px;
+  height: 13px;
+}
+.hig-mcell .retry {
+  border: 0;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.hig-mcell.add {
+  background: transparent;
+  border: 1.5px dashed var(--separator-opaque);
+  color: var(--blue);
+  cursor: pointer;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+}
+.hig-mcell.add svg {
+  width: 26px;
+  height: 26px;
+  fill: var(--blue);
+}
+.hig-mcell .status-tag {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+/* ---------- 逐帧复盘播放器（全屏覆盖） ---------- */
+.hig-player {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.hig-player .player-nav {
+  flex: 0 0 auto;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+}
+.hig-player .pn-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #fff;
+}
+.hig-player .hig-navbtn {
+  color: var(--blue);
+}
+.hig-player .player-stage {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  background: #000;
+  padding: 6px 0;
+}
+.hig-player .player-stage video {
+  max-width: 100%;
+  max-height: 100%;
+  background: #000;
+  border-radius: 4px;
+}
+.hig-player .player-readout {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8px 20px 6px;
+  color: #fff;
+}
+.hig-player .frame-no {
+  font-size: 19px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hig-player .tc {
+  font-size: 13px;
+  color: rgba(235, 235, 245, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+.hig-player .scrubber {
+  flex: 0 0 auto;
+  position: relative;
+  height: 26px;
+  margin: 0 20px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;
+}
+.hig-player .scrubber::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(120, 120, 128, 0.4);
+}
+.hig-player .scrub-fill {
+  position: absolute;
+  left: 0;
+  height: 5px;
+  width: 0;
+  border-radius: 3px;
+  background: var(--blue);
+}
+.hig-player .scrub-knob {
+  position: absolute;
+  left: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #fff;
+  transform: translateX(-50%);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.hig-player .transport {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 16px 6px;
+}
+.hig-player .tbtn {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(120, 120, 128, 0.24);
+  color: #fff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.hig-player .tbtn:active {
+  background: rgba(120, 120, 128, 0.4);
+}
+.hig-player .tbtn svg {
+  width: 24px;
+  height: 24px;
+  fill: #fff;
+}
+.hig-player .tbtn span {
+  position: absolute;
+  bottom: 7px;
+  right: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+}
+.hig-player .tbtn.play {
+  width: 66px;
+  height: 66px;
+  background: var(--blue);
+}
+.hig-player .tbtn.play svg {
+  width: 30px;
+  height: 30px;
+}
+.hig-player .speed-seg {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 2px;
+  align-self: center;
+  margin-top: 8px;
+  padding: 2px;
+  background: rgba(120, 120, 128, 0.24);
+  border-radius: 9px;
+}
+.hig-player .speed-seg button {
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 590;
+  padding: 7px 16px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.hig-player .speed-seg button.on {
+  background: rgba(120, 120, 128, 0.5);
+}
+.hig-player .player-note {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: rgba(235, 235, 245, 0.6);
+  text-align: center;
+  padding: 12px 24px 18px;
+  line-height: 1.4;
+}
+
+/* ---------- 空态 / 加载 ---------- */
+.hig-empty {
+  text-align: center;
+  color: var(--label-2);
+  font-size: 15px;
+  padding: 60px 24px;
+}
+.hig-loading {
+  text-align: center;
+  color: var(--label-2);
+  font-size: 15px;
+  padding: 80px 24px;
+}

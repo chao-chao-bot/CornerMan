@@ -3,6 +3,82 @@
 记录每次大型修改。新记录追加在最上方（倒序）。
 每条字段：日期 / 范围 / 改动摘要 / 影响文件 / 备注。
 
+## 2026-06-12 · R3 视频素材异步附件（复用 Video 管线 · HIG 编辑器内嵌）
+- 范围：api / api-client / web
+- 决策：采用最小改造方案——复用现有 `Video` 表与「init→PUT→complete→worker」上传管线，把视频做成 HIG 复盘编辑器内的「异步附件卡片」；图片附件、MediaAttachment 新表、worker 与 AI 分析拆分留待后续迭代。
+- 改动摘要：
+  - **后端**（[videos.service.ts](apps/api/src/videos/videos.service.ts) / [videos.controller.ts](apps/api/src/videos/videos.controller.ts)）：新增 `VideosService.remove` 与 `DELETE /videos/:id`，软删（写 `deletedAt`）+ 归属校验；列表 `listBySession` 已过滤 `deletedAt: null`，删除后自动隐藏。
+  - **api-client**（[index.ts](packages/api-client/src/index.ts)）：新增 `deleteVideo(id)`。
+  - **HIG 样式**（[app/hig.css](apps/web/app/hig.css)）：新增 `.hig-media` 媒体网格、`.hig-mcell` 方格、`.hig-ring` 环形进度、状态遮罩/角标、`corner-del`/`retry`/`add` 等类，对齐 ios-hig 视觉。
+  - **图标**（[icons.tsx](apps/web/app/components/hig/icons.tsx)）：新增 `PlayIcon`、`CloseIcon`。
+  - **媒体组件**（[session-media.tsx](apps/web/app/sessions/[id]/session-media.tsx)）：选文件即生成上传中卡片（环形进度），`init→PUT→complete` 复用 `lib/upload-video`；存在处理中视频/上传任务时每 3s 轮询刷新；失败可重试、已上传可删除；ready 后展示封面、点击就地播放（playbackUrl）。上传与复盘内容编辑互不阻塞。
+  - **编辑器**（[session-editor.tsx](apps/web/app/sessions/[id]/session-editor.tsx)）：在「实战成败」与「复盘内容」之间内嵌「视频素材」分组与 `SessionMedia`。
+- 验证：`@cornerman/api`/`@cornerman/web` typecheck 通过、api-client build 通过、ReadLints 无错；NestJS 已映射 `DELETE /api/videos/:id`；浏览器走查确认 HIG 编辑器出现「视频素材」分组与「添加视频」方格、无控制台报错（video-worker 未启动，故视频停在「等待处理」属预期）。
+
+## 2026-06-12 · R2 模板化复盘编辑器前端落地（HIG 风格 · FAB+Sheet+TipTap 自动保存）
+- 范围：web / api-client
+- 背景：R1 后端就绪后，按路线图落地 R2 前端。严格对齐 `design-preview/ios-hig` 的 HIG 视觉与交互（系统色 / Inset Grouped 列表 / 带 grabber 的 Sheet / 44pt 触控 / 浅深色）。
+- 改动摘要：
+  - **api-client**（[index.ts](packages/api-client/src/index.ts)）：新增 `listTemplates/getTemplate/createTemplate/updateTemplate/deleteTemplate/duplicateTemplate`、`updateSessionContent`、`updateSessionMeta`；`typecheck` 通过（包以 `src` 直供，无需 build）。
+  - **HIG 样式**（[app/hig.css](apps/web/app/hig.css)）：移植 ios-hig 令牌与组件类为 Web 适配版，全部以 `.hig` 作用域，去掉手机外壳、改为居中响应式容器；在 [layout.tsx](apps/web/app/layout.tsx) 全局引入。含 nav/large-title/inset list/form/block/toolbar/stars/checklist/seg/FAB/sheet/save 等类。
+  - **HIG 组件**（`apps/web/app/components/hig/`）：`icons.tsx`（SF 近似图标）、`bottom-sheet.tsx`（framer-motion，下滑/蒙层关闭）、`blocks.tsx`（rich_text=TipTap StarterKit+Highlight、short_text、rating 5★、checklist、media_reference 占位）、`create-session-sheet.tsx`（模板分组 + 今天/昨天/选择日期 快选，带 templateId 创建）、`create-fab.tsx`（悬浮入口 + 创建后跳转）。
+  - **编辑器**（[session-editor.tsx](apps/web/app/sessions/[id]/session-editor.tsx)）：按 `templateSnapshot.blocks` 渲染 Block 卡片；内容 800ms 防抖 `updateSessionContent`，导航右侧「保存中/已保存/失败」胶囊；日期可改（`updateSessionMeta`）；实战类型显示「胜/平/负/未记 + 对手 + 回合」成败编辑（`updateSessionMeta.outcome`）；跟随系统浅深色。
+  - **接线**：[sessions/page.tsx](apps/web/app/sessions/page.tsx) 挂载 `CreateFab`；[sessions/[id]/page.tsx](apps/web/app/sessions/[id]/page.tsx) 对有 `templateSnapshot` 的 Session 直接渲染 `SessionEditor`，隐藏旧 AI/评分/姿态布局（旧 AI Session 维持原页面）。
+  - **依赖**：web 工作区新增 `framer-motion`、`@tiptap/react`、`@tiptap/pm`、`@tiptap/starter-kit`、`@tiptap/extension-highlight`（用户手动安装，TipTap v3）。
+- 影响文件：`packages/api-client/src/index.ts`、`apps/web/app/hig.css`、`apps/web/app/layout.tsx`、`apps/web/app/components/hig/*`、`apps/web/app/sessions/page.tsx`、`apps/web/app/sessions/[id]/{page,session-editor}.tsx`、`apps/web/package.json`、`docs/{roadmap,worklog}.md`
+- 验证：`@cornerman/api-client`、`@cornerman/web` `typecheck` 均通过；ReadLints 无错。本地全栈（podman PG/Redis/MinIO + api dev + web dev）下浏览器走通主链路：登录 → 列表页 FAB「新建复盘」→ Sheet 选「实战复盘」（今天）→ 跳转编辑器 → 富文本输入 + 选「胜」→ API 校验 `content.opponent_style.doc/plainText`、`outcome.result=win`、`savedAt` 全部落库；刷新后内容回显。
+- 备注：`media_reference` 块当前为占位文案，素材库选择 / 关键帧插入留待 R7；自定义模板 Builder 留待 R4；登录态自动续期（401 刷新重放）留待 R5。
+
+## 2026-06-12 · R1 模板数据层后端落地（Template + Session 扩展 + 系统模板 seed）
+- 范围：api / shared-types / prisma
+- 背景：v1.2 文档重规划后，按路线图先落地 R1 后端地基——模板数据层与 Session 内容/成败字段，并用 curl 烟测验证主链路可通过。
+- 改动摘要：
+  - **shared-types**（[index.ts](packages/shared-types/src/index.ts)）：新增 `TemplateScene/TemplateBlockType/TemplateBlock/TemplateSchema/TemplateDTO/CreateTemplateInput/UpdateTemplateInput`、`SessionContentBlock/SessionContent`、`SessionOutcomeResult/SessionOutcome`、`UpdateSessionContentInput/UpdateSessionMetaInput`；`CreateTrainingSessionInput` 加 `templateId`，`TrainingSessionDTO` 加 `templateId/templateSnapshot/content/outcome/savedAt`。已 `build` 产出 dist。
+  - **Prisma**（[schema.prisma](apps/api/prisma/schema.prisma)）：新增 `Template` 模型（`userId?` 系统模板为空、`schema Json`、`isSystem`、`version`、软删、`@@index([userId])`）；`TrainingSession` 增 `templateId/templateSnapshot/content/outcome/savedAt`；`User` 加 `templates` 反向关系。迁移 `20260612093458_templates_and_session_content` 已 apply。
+  - **seed**（[prisma/seed.ts](apps/api/prisma/seed.ts)）：固定 id + upsert 幂等写入三套系统模板（私教课/实战/自训），blocks 对齐 PRD §7；[package.json](apps/api/package.json) 加 `tsx` 依赖、`prisma.seed` 配置与 `prisma:seed` 脚本。
+  - **templates 模块**（`apps/api/src/templates/`）：controller/service/dto/module + `template-schema.util.ts` 运行时校验（blocks 非空、id 唯一、type 合法、title 必填）。接口 `GET /templates`（系统 + 个人）、`GET /:id`、`POST`、`PATCH /:id`、`DELETE /:id`（软删）、`POST /:id/duplicate`；系统模板只读、个人模板仅归属者可写。注册进 [app.module.ts](apps/api/src/app.module.ts)。
+  - **training-sessions 扩展**：`create` 支持 `templateId` → 校验可见性、写 `templateSnapshot` 与按 blocks 生成空 `content` 骨架；新增 `PATCH :id/content`（写 content + savedAt）、`PATCH :id/meta`（基础字段 + outcome）；`toDTO` 补新字段；模块 import `TemplatesModule`。
+  - **烟测**（[scripts/smoke-templates.sh](apps/api/scripts/smoke-templates.sh)）：curl + jq，11 项断言（注册 → 系统模板 → 建自定义模板 → 非法 schema 400 → 带模板建 Session（快照+空内容）→ PATCH content 持久化+savedAt → PATCH meta outcome 回显 → 跨用户 404 → 越权 403 → 系统模板改 403）。**结果 11/11 通过**。
+- 影响文件：`packages/shared-types/src/index.ts`、`apps/api/prisma/{schema.prisma,seed.ts,migrations/20260612093458_*}`、`apps/api/package.json`、`apps/api/src/app.module.ts`、`apps/api/src/templates/**`、`apps/api/src/training-sessions/{training-sessions.service,training-sessions.controller,training-sessions.module}.ts`、`apps/api/src/training-sessions/dto/{create-training-session,update-content,update-session-meta}.dto.ts`、`docs/{roadmap,worklog}.md`
+- 验证：`pnpm --filter @cornerman/shared-types build` 通过；`pnpm --filter @cornerman/api typecheck` 通过；本地 infra（podman）起 Postgres，migrate + seed + `api dev` 后 curl 烟测 11/11 全绿。
+- 备注：`prisma/seed.ts` 在编辑器里报 `template`/`process` 两个 lint，是它不在 api 的 `tsc` include 范围（src-only）且依赖 `tsx` 运行所致，不影响 build/typecheck/运行（seed 实跑成功）。前端 `api-client`、`/templates` 页与 R2 编辑器留待后续。
+
+## 2026-06-12 · HIG 逐帧播放器原型 + 文档重规划 v1.2（登录/趋势/成败/关键帧/素材库）
+- 范围：design-preview / docs
+- 背景：HIG 风格 Demo（`design-preview/ios-hig/`）确认作为后续实现的视觉与交互基准。本轮在「模板化训练记录」闭环上补齐长期回看与复用能力，并明确「实战成败如何展示」「富文本 + 关键帧」「素材库」「登录注册（接口已有可复用）」四个方向。
+- 改动摘要：
+  - **新增 HIG 逐帧复盘播放器原型**（`design-preview/ios-hig/`）：index.html 加播放器 SF Symbol 图标 + 逐帧屏 + 「逐帧」入口；hig.css 加全屏黑底、刷度轴、transport、慢放分段样式；app.js 加帧步进 / ±10 帧 / 慢放 / 拖动刷度 / 帧号时码 / 键盘快捷键。用 ffmpeg 生成本地 `assets/sample.mp4`（testsrc，30fps）供离线演示。修复「`pointerdown` 上 `preventDefault` 吞掉 click 导致单帧不步进」的坑（改为 pointerdown 即步进 + 长按连续）。浏览器验证通过。
+  - **新增 [trends-design.md](docs/trends-design.md)**：数据趋势看板（时间范围、主曲线、关键指标卡环比、训练结构、波峰波谷）；**实战成败上下展示**（结构化 `outcome` 字段、Form Guide 近况条 `●●○◐●`、胜率/状态折线、环比、负场问题闭环；下滑用中性/橙不用告警红，默认「不计」）；日期与时间范围选择。
+  - **新增 [media-library-design.md](docs/media-library-design.md)**：用户级素材库（选择/预览/引用，引用非复制）；关键帧抽取（canvas 占位 + 后端 `-ss` 精确抽帧）与富文本 `keyframe` 节点；富文本编辑器要求；逐帧播放器规格（沉淀自原型）。
+  - **PRD 升级 v1.2**：关键决策补 HIG 基准/账号/趋势/素材库/富文本关键帧；新增实体 Keyframe/Outcome/Account；新增 §10 账号登录注册、§11 趋势看板与实战成败、§12 日期选择、§13 素材库与关键帧；用户故事补 US9-US14；上线准入更新。
+  - **技术设计升级 v1.2**：`TrainingSession.outcome`、Session content `keyframe` 节点、`MediaAttachment` 增 `userId/kind(keyframe)/sourceVideoId/timeMs/tags`；API 补 Auth（复用）、Media Library、关键帧抽取、`/metrics/trends`、`/metrics/outcomes`；前端页补登录/趋势/素材库；新增 §13 前端登录态与鉴权、§14 逐帧播放器实现基准。
+  - **移动端规范**：确立 `design-preview/ios-hig/` 为基准；新增 §5 v1.2 交互（逐帧播放器、日期选择、登录、趋势、素材库），验收清单与触控基线同步。
+  - **路线图**：新增 R5 登录态前端、R6 趋势看板与实战成败、R7 素材库与关键帧，旧 R5 收尾上线顺延为 R8；R2 加训练日期选择；依赖图、风险登记、上线准入清单同步。
+  - **README**：文档索引更新到 v1.2 并新增两份专项文档与 HIG 基准说明。
+- 影响文件：`design-preview/ios-hig/{index.html,hig.css,app.js,assets/sample.mp4}`、`docs/{trends-design.md,media-library-design.md,prd.md,tech-design.md,mobile-design.md,roadmap.md,worklog.md}`、`README.md`
+- 备注：仅文档与静态设计 Demo，未改业务代码。实现顺序建议：R5 登录态前端 → R6 趋势看板 → R7 素材库与关键帧（含 web 逐帧播放器）。
+
+## 2026-06-12 · 移动端优先交互设计规范沉淀
+- 范围：docs
+- 背景：MVP 重置为模板化训练记录后，确立本轮**移动端优先**。用户主要在实战/私教课后、双手出汗、轻微喘气的疲劳状态下使用，核心设计原则统一为「对抗疲劳带来的阻力」：大触控区、防误触、免等待、少层级、暗色优先。
+- 改动摘要：
+  - **新增 [mobile-design.md](docs/mobile-design.md)**：移动端优先设计规范。覆盖四大交互（首页 FAB + Bottom Sheet 模板选择、Block-based 编辑器、异步无感视频挂载、自定义模板 Builder）、标杆参考（Strava/Keep、Day One/Notion、Instagram/朋友圈、iOS 快捷指令/Typeform）、前端落地建议（framer-motion + Tailwind + Ant Design Mobile/Zarm）、触控尺寸基线与设计验收清单。
+  - **PRD 同步**：背景补「移动端优先」判断与链接；第 9 节补移动端优先要求（FAB/Bottom Sheet、预加载 Block、异步媒体卡片、触控基线、暗色主题）。
+  - **技术设计同步**：新增 8.1 移动端优先落地建议（framer-motion、Bottom Sheet、Block 编辑器、异步媒体卡片、Builder 手势、触控基线）。
+  - **路线图同步**：设计原则「移动端可用」升级为「移动端优先」；R2/R3/R4 退出标准与任务改为移动端导向（FAB+Bottom Sheet、缩略图占位+环形进度、点击添加+长按排序）；R5 与上线清单补触控基线、暗色主题、iphone-13 Playwright。
+- 影响文件：`docs/mobile-design.md`、`docs/prd.md`、`docs/tech-design.md`、`docs/roadmap.md`、`docs/worklog.md`
+- 备注：仅文档，未改业务代码。代码实现顺序建议：首页 FAB + Bottom Sheet 模板选择 → Block-based 编辑器移动端骨架 → 异步媒体卡片 → 模板 Builder。
+
+## 2026-06-12 · MVP 产品方向重置：模板化训练记录 + 媒体附件
+- 范围：docs
+- 背景：原 MVP 主线围绕「上传视频 → AI/CV 分析 → 自动报告/评分 → 用户修订」展开，工程上已形成较重的 AI/CV 复盘闭环。但当前产品判断认为这条路线过早依赖模型质量，容易偏离拳击训练者最确定的需求：训练后快速记录、稳定复盘、长期回看。
+- 改动摘要：
+  - **PRD 重写为 v1.1**：产品定位调整为「面向拳击爱好者的高效训练记录与复盘工具」；核心流程改为「选择场景化模板 → 填写富文本复盘 → 挂载视频/图片 → 保存训练档案」；语音识别、AI 自动报告、自动评分、CV 智能打标签移出 MVP 主承诺，保留为未来扩展。
+  - **技术设计重写为 v1.1**：新增 `Template`、`TrainingSession.templateSnapshot/content`、`MediaAttachment` 等设计；模板 schema 使用 JSON 描述；富文本内容按 block 存储；视频/图片作为 Session 附件异步上传和处理；`ai-service`、`AnalysisReport`、`Score`、`VideoSegment` 降级为未来 AI/CV 插件层。
+  - **路线图重写为 R0-R5**：新阶段为 `R0 方向重置 → R1 模板数据层 → R2 复盘编辑器 → R3 媒体附件 → R4 自定义模板 → R5 收尾上线`；旧 AI/CV 能力不立即删除，先从 MVP 主入口隐藏。
+- 影响文件：`docs/prd.md`、`docs/tech-design.md`、`docs/roadmap.md`、`docs/worklog.md`
+- 备注：本次仅记录产品与架构方案，未修改业务代码。后续实现应以 v1.1 文档为准，先恢复稳定记录闭环，再考虑 AI/CV 增强。
+
 ## 2026-06-10 · 多视频 Session 级报告与补传交互
 - 范围：video-worker / api / shared-types / web / docs
 - 根因：报告生成绑定单视频——[analyze.ts](apps/video-worker/src/analyze.ts) 只查触发视频 `where:{videoId}` 的片段，且 session 已有 draft 即跳过，导致补传视频永远进不了报告，只有第一个视频与报告联动

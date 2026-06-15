@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>CornerMan · iOS HIG 设计 Demo</title>
+<link rel="stylesheet" href="hig.css" />
+</head>
+<body>
+
+<!-- SF Symbols 风格内联图标精灵 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="i-back" viewBox="0 0 28 28"><path d="M17 6l-8 8 8 8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 13l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6 12h12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-grip" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><circle cx="4" cy="6" r="1.4" fill="currentColor"/><circle cx="4" cy="12" r="1.4" fill="currentColor"/><circle cx="4" cy="18" r="1.4" fill="currentColor"/></symbol>
+    <symbol id="i-square-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6" stroke="currentColor" stroke-width="1.8" fill="none"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6" stroke="currentColor" stroke-width="1.8" fill="none"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6" stroke="currentColor" stroke-width="1.8" fill="none"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6" stroke="currentColor" stroke-width="1.8" fill="none"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 16v-4M12 16V8M16 16v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-person" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.9" fill="none"/><path d="M4.5 20a7.5 7.5 0 0115 0" stroke="currentColor" stroke-width="1.9" fill="none"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2.4" fill="#fff"/><path d="M16 10l5-3v10l-5-3z" fill="#fff"/></symbol>
+    <symbol id="i-figure" viewBox="0 0 24 24"><circle cx="13" cy="5" r="2.2" fill="#fff"/><path d="M13 8l-3 5 3 1 1 6M13 14l4 2 3-2M10 13l-4 1" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3c1 3 4 4 4 8a4 4 0 11-8 0c0-2 1-3 2-4 .5 1 1 1.5 2 2 0-2-1-4-0-6z" fill="#fff"/></symbol>
+    <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z" stroke="#fff" stroke-width="1.8" fill="none"/><path d="M14 3v5h5" stroke="#fff" stroke-width="1.8" fill="none"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.8 6.3.7-4.7 4.3 1.3 6.2L12 17.8 6.1 20.3l1.3-6.2L2.7 9.5l6.3-.7z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="1.8" fill="none"/><path d="M12 7v5l3.5 2" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 10-14 0c0 5.8 7 12 7 12z" stroke="#fff" stroke-width="1.8" fill="none"/><circle cx="12" cy="10" r="2.4" fill="#fff"/></symbol>
+    <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-battery" viewBox="0 0 25 13"><rect x="1" y="1" width="20" height="11" rx="3" stroke="currentColor" stroke-width="1" fill="none" opacity="0.4"/><rect x="2.5" y="2.5" width="17" height="8" rx="1.8" fill="currentColor"/><rect x="22.5" y="4" width="1.6" height="5" rx="0.8" fill="currentColor" opacity="0.4"/></symbol>
+    <symbol id="i-signal" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.2" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-step-back" viewBox="0 0 24 24"><rect x="4" y="5" width="2.6" height="14" rx="1" fill="currentColor"/><path d="M20 5l-11 7 11 7z" fill="currentColor"/></symbol>
+    <symbol id="i-step-fwd" viewBox="0 0 24 24"><rect x="17.4" y="5" width="2.6" height="14" rx="1" fill="currentColor"/><path d="M4 5l11 7-11 7z" fill="currentColor"/></symbol>
+    <symbol id="i-jump-back" viewBox="0 0 24 24"><path d="M11 5l-8 7 8 7z" fill="currentColor"/><path d="M21 5l-8 7 8 7z" fill="currentColor"/></symbol>
+    <symbol id="i-jump-fwd" viewBox="0 0 24 24"><path d="M3 5l8 7-8 7z" fill="currentColor"/><path d="M13 5l8 7-8 7z" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<div class="preview-head">
+  <div class="brand">CornerMan 拳角 · iOS 设计预览（Apple HIG）</div>
+  <p>清晰 Clarity · 克制 Deference · 层次 Depth — 系统字体 / 系统色 / Inset Grouped / 材质模糊 / 44pt 触控</p>
+  <div class="seg" id="seg">
+    <button data-go="list" class="active">训练</button>
+    <button data-go="editor">复盘</button>
+    <button data-go="player">逐帧</button>
+    <button data-go="builder">模板</button>
+    <button data-appearance="light" class="active" style="margin-left:8px;">浅色</button>
+    <button data-appearance="dark">深色</button>
+  </div>
+</div>
+
+<div class="device">
+  <div class="screen-frame" id="frame" data-theme="light">
+
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="right">
+        <svg><use href="#i-signal"/></svg>
+        <span style="font-size:14px;font-weight:600;">5G</span>
+        <svg><use href="#i-battery"/></svg>
+      </span>
+    </div>
+
+    <!-- ============ 训练列表 ============ -->
+    <section class="screen active" id="list">
+      <div class="navbar" id="nav-list">
+        <span class="nav-title">训练</span>
+        <div class="nav-trailing">
+          <button class="nav-btn" id="addBtn" aria-label="新建记录"><svg><use href="#i-plus"/></svg></button>
+        </div>
+      </div>
+
+      <div class="content" data-nav="nav-list">
+        <div class="large-title">训练<span class="sub">本周已记录 3 次 · 继续保持</span></div>
+
+        <div class="section-header">本周</div>
+        <div class="list">
+          <div class="row no-inset-sep">
+            <div class="row-main"><div class="row-title">训练次数</div></div>
+            <div class="row-value">3 次</div>
+          </div>
+          <div class="row no-inset-sep">
+            <div class="row-main"><div class="row-title">累计时长</div></div>
+            <div class="row-value">4 小时 12 分</div>
+          </div>
+          <div class="row no-inset-sep">
+            <div class="row-main"><div class="row-title">视频素材</div></div>
+            <div class="row-value">12 个</div>
+          </div>
+        </div>
+
+        <div class="section-header">最近训练</div>
+        <div class="list">
+          <div class="row media-row" data-go="editor">
+            <div class="thumb bg-blue"><svg style="width:26px;height:26px"><use href="#i-figure"/></svg></div>
+            <div class="row-main">
+              <div class="row-title">jab 后快速回防 + 后撤步</div>
+              <div class="row-sub"><span class="badge-pill blue">私教课</span> &nbsp;今天 · 60 分钟</div>
+            </div>
+            <span class="chevron"><svg><use href="#i-chevron"/></svg></span>
+          </div>
+          <div class="row media-row" data-go="editor">
+            <div class="thumb bg-orange"><svg style="width:26px;height:26px"><use href="#i-flame"/></svg></div>
+            <div class="row-main">
+              <div class="row-title">约练实战 3 回合</div>
+              <div class="row-sub"><span class="badge-pill orange">实战</span> &nbsp;周三 · 45 分钟</div>
+            </div>
+            <span class="chevron"><svg><use href="#i-chevron"/></svg></span>
+          </div>
+          <div class="row media-row" data-go="editor">
+            <div class="thumb bg-green"><svg style="width:26px;height:26px"><use href="#i-dumbbell"/></svg></div>
+            <div class="row-main">
+              <div class="row-title">沙袋专项 + 体能</div>
+              <div class="row-sub"><span class="badge-pill green">自训</span> &nbsp;周一 · 50 分钟</div>
+            </div>
+            <span class="chevron"><svg><use href="#i-chevron"/></svg></span>
+          </div>
+        </div>
+        <div class="section-footer">点按右上角 + 选择训练模板，开始一次复盘记录。</div>
+      </div>
+
+      <div class="tabbar">
+        <div class="tab active"><svg><use href="#i-list"/></svg>训练</div>
+        <div class="tab" data-go="builder"><svg><use href="#i-square-grid"/></svg>模板</div>
+        <div class="tab"><svg><use href="#i-chart"/></svg>趋势</div>
+        <div class="tab"><svg><use href="#i-person"/></svg>我的</div>
+      </div>
+    </section>
+
+    <!-- ============ 复盘编辑（grouped form） ============ -->
+    <section class="screen" id="editor">
+      <div class="navbar scrolled" id="nav-editor">
+        <span class="nav-title">私教课复盘</span>
+        <div class="nav-leading">
+          <button class="nav-btn back" data-go="list"><svg><use href="#i-back"/></svg>训练</button>
+        </div>
+        <div class="nav-trailing">
+          <button class="nav-btn" id="doneBtn" style="font-weight:600;">完成</button>
+        </div>
+      </div>
+
+      <div class="content" data-nav="nav-editor" style="padding-top:98px;">
+        <div class="section-header">训练信息</div>
+        <div class="list" style="overflow:visible;">
+          <div class="form-field"><span class="fl">类型</span><span class="row-value" style="margin-left:auto;color:var(--blue)">私教课</span></div>
+          <div class="form-field"><span class="fl">日期</span><span class="row-value" style="margin-left:auto">今天 16:30</span></div>
+          <div class="form-field"><span class="fl">地点</span><input value="拳馆" /></div>
+          <div class="form-field"><span class="fl">时长</span><input value="60 分钟" /></div>
+        </div>
+
+        <div class="section-header">教练重点纠错 · 必填</div>
+        <div class="list">
+          <div class="block-area">
+            <div class="ce" contenteditable="true" data-ph="记录教练指出的问题、改法和关键词…">jab 出完左手回位太慢，被反击两次。教练要求打完立刻收手护住下巴。</div>
+          </div>
+        </div>
+
+        <div class="section-header">今日新学技术</div>
+        <div class="list">
+          <div class="block-area">
+            <div class="ce" contenteditable="true" data-ph="今天新学或重点打磨的动作…"></div>
+          </div>
+        </div>
+
+        <div class="section-header">体能消耗</div>
+        <div class="list">
+          <div class="form-field" style="justify-content:flex-start;">
+            <div class="stars" id="stars">
+              <svg class="s on"><use href="#i-star"/></svg>
+              <svg class="s on"><use href="#i-star"/></svg>
+              <svg class="s on"><use href="#i-star"/></svg>
+              <svg class="s on"><use href="#i-star"/></svg>
+              <svg class="s"><use href="#i-star"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-header">课后总结</div>
+        <div class="list">
+          <div class="block-area">
+            <div class="ce" contenteditable="true" data-ph="整体感受、下次重点…"></div>
+          </div>
+        </div>
+
+        <div class="section-header">训练视频与图片</div>
+        <div class="media-wrap" style="margin:0 16px;">
+          <div class="media-grid" id="mgrid">
+            <div class="mcell" data-go="player" data-play>
+              <span class="ph">🥊</span>
+              <span class="corner"><svg><use href="#i-check"/></svg></span>
+              <span class="play-hint"><svg><use href="#i-play"/></svg></span>
+            </div>
+            <div class="mcell add" id="addMedia">
+              <svg><use href="#i-plus"/></svg>
+              添加
+            </div>
+          </div>
+        </div>
+        <div class="section-footer" style="margin-bottom:10px;">选完即可继续写文字，视频在后台上传转码，不必等待。</div>
+      </div>
+    </section>
+
+    <!-- ============ 模板编辑（editing mode） ============ -->
+    <section class="screen" id="builder">
+      <div class="navbar scrolled" id="nav-builder">
+        <span class="nav-title">编辑模板</span>
+        <div class="nav-leading">
+          <button class="nav-btn back" data-go="list"><svg><use href="#i-back"/></svg></button>
+        </div>
+        <div class="nav-trailing">
+          <button class="nav-btn" id="saveTmpl" style="font-weight:600;">存储</button>
+        </div>
+      </div>
+
+      <div class="content" data-nav="nav-builder" style="padding-top:98px;">
+        <div class="section-header">模板名称</div>
+        <div class="list">
+          <div class="form-field"><input value="力量体能训练" style="font-weight:500" /></div>
+        </div>
+
+        <div class="section-header">字段（点 − 删除，长按 ☰ 排序）</div>
+        <div class="list" id="canvas">
+          <div class="edit-row">
+            <button class="minus" aria-label="删除"><svg><use href="#i-minus"/></svg></button>
+            <div class="er-main"><div class="er-title">热身 / 空击组数</div><div class="er-sub">单行文本</div></div>
+            <span class="grip"><svg><use href="#i-grip"/></svg></span>
+          </div>
+          <div class="edit-row">
+            <button class="minus" aria-label="删除"><svg><use href="#i-minus"/></svg></button>
+            <div class="er-main"><div class="er-title">专项训练内容</div><div class="er-sub">富文本</div></div>
+            <span class="grip"><svg><use href="#i-grip"/></svg></span>
+          </div>
+          <div class="edit-row">
+            <button class="minus" aria-label="删除"><svg><use href="#i-minus"/></svg></button>
+            <div class="er-main"><div class="er-title">体能评分</div><div class="er-sub">评分 1–5</div></div>
+            <span class="grip"><svg><use href="#i-grip"/></svg></span>
+          </div>
+        </div>
+
+        <div class="section-header">从字段库添加</div>
+        <div class="list" id="fieldLib">
+          <div class="add-field-row" data-name="自由文本" data-type="富文本">
+            <span class="plus"><svg><use href="#i-plus"/></svg></span><span class="aft">自由文本</span>
+          </div>
+          <div class="add-field-row" data-name="回合数记录" data-type="单行文本">
+            <span class="plus"><svg><use href="#i-plus"/></svg></span><span class="aft">回合数记录</span>
+          </div>
+          <div class="add-field-row" data-name="动作清单" data-type="勾选列表">
+            <span class="plus"><svg><use href="#i-plus"/></svg></span><span class="aft">动作清单</span>
+          </div>
+          <div class="add-field-row" data-name="训练视频" data-type="媒体引用">
+            <span class="plus"><svg><use href="#i-plus"/></svg></span><span class="aft">训练视频</span>
+          </div>
+        </div>
+
+        <button class="btn-filled" id="useTmpl">用此模板新建训练</button>
+        <button class="btn-plain" data-go="list">取消</button>
+      </div>
+    </section>
+
+    <!-- ============ 逐帧复盘播放器 ============ -->
+    <section class="screen" id="player">
+      <div class="player-nav">
+        <button class="nav-btn" data-go="editor" style="padding-left:12px;">完成</button>
+        <span class="pn-title">逐帧复盘</span>
+        <button class="nav-btn" id="grabFrame" style="padding-right:12px;justify-content:flex-end;color:var(--blue);">收藏帧</button>
+      </div>
+
+      <div class="player-stage">
+        <video id="vid" playsinline preload="metadata"
+          poster="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='9'/>"
+          src="assets/sample.mp4"></video>
+      </div>
+
+      <div class="player-readout">
+        <span class="frame-no" id="frameNo">帧 0</span>
+        <span class="tc" id="timecode">00:00.000 / 00:00.000</span>
+      </div>
+
+      <div class="scrubber" id="scrubber">
+        <div class="scrub-fill" id="scrubFill"></div>
+        <div class="scrub-knob" id="scrubKnob"></div>
+      </div>
+
+      <div class="transport">
+        <button class="tbtn" id="back10" aria-label="后退10帧"><svg><use href="#i-jump-back"/></svg><span>10</span></button>
+        <button class="tbtn" id="prevFrame" aria-label="上一帧"><svg><use href="#i-step-back"/></svg></button>
+        <button class="tbtn play" id="playPause" aria-label="播放/暂停"><svg id="ppIcon"><use href="#i-play"/></svg></button>
+        <button class="tbtn" id="nextFrame" aria-label="下一帧"><svg><use href="#i-step-fwd"/></svg></button>
+        <button class="tbtn" id="fwd10" aria-label="前进10帧"><svg><use href="#i-jump-fwd"/></svg><span>10</span></button>
+      </div>
+
+      <div class="speed-seg" id="speedSeg">
+        <button data-rate="0.25">0.25×</button>
+        <button data-rate="0.5">0.5×</button>
+        <button data-rate="1" class="on">1×</button>
+      </div>
+
+      <p class="player-note">逐帧：点 ‹帧 帧› 单帧步进（默认 30fps），慢放观察出拳轨迹与回防。拖动刷度轴可精确定位。</p>
+    </section>
+
+    <!-- ============ Sheet：模板选择 ============ -->
+    <div class="scrim" id="scrim"></div>
+    <div class="sheet" id="sheet">
+      <div class="grabber"></div>
+      <div class="sheet-nav">
+        <button id="sheetCancel">取消</button>
+        <span class="t">选择模板</span>
+        <button style="visibility:hidden;">取消</button>
+      </div>
+      <div class="sheet-body">
+        <div class="section-footer" style="padding-top:6px;padding-bottom:6px;">选一个模板，直接开始写，不用从空白页开始。</div>
+        <div class="list">
+          <div class="row" data-go="editor">
+            <span class="leading-icon bg-blue"><svg><use href="#i-figure"/></svg></span>
+            <div class="row-main"><div class="row-title">私教课</div><div class="row-sub">教练指导与纠错</div></div>
+            <span class="badge-pill blue">最近</span>
+          </div>
+          <div class="row" data-go="editor">
+            <span class="leading-icon bg-orange"><svg><use href="#i-flame"/></svg></span>
+            <div class="row-main"><div class="row-title">实战</div><div class="row-sub">对手分析 · 防守漏洞 · 高光</div></div>
+            <span class="chevron"><svg><use href="#i-chevron"/></svg></span>
+          </div>
+          <div class="row" data-go="editor">
+            <span class="leading-icon bg-green"><svg><use href="#i-dumbbell"/></svg></span>
+            <div class="row-main"><div class="row-title">自训</div><div class="row-sub">空击 · 沙袋 · 专项体能</div></div>
+            <span class="chevron"><svg><use href="#i-chevron"/></svg></span>
+          </div>
+        </div>
+        <div class="section-header">我的模板</div>
+        <div class="list">
+          <div class="row" data-go="builder">
+            <span class="leading-icon bg-purple"><svg><use href="#i-dumbbell"/></svg></span>
+            <div class="row-main"><div class="row-title">力量体能训练</div><div class="row-sub">5 个字段</div></div>
+            <span class="chevron"><svg><use href="#i-chevron"/></svg></span>
+          </div>
+          <div class="row" data-go="builder">
+            <span class="leading-icon bg-gray"><svg><use href="#i-plus"/></svg></span>
+            <div class="row-main"><div class="row-title">新建自定义模板</div></div>
+            <span class="chevron"><svg><use href="#i-chevron"/></svg></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

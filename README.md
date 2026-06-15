@@ -7,9 +7,14 @@
 ## 文档索引
 
 - [产品调研](docs/product-research.md)：市场判断、竞品矩阵、机会与风险
-- [产品需求文档（MVP）](docs/prd.md)：目标用户、功能范围、评分体系、里程碑
-- [技术设计文档（MVP）](docs/tech-design.md)：monorepo 架构、技术选型、AI 流水线、部署方案
-- [执行路线图](docs/roadmap.md)：P0-P5 分阶段交付、退出标准、当前进度跟踪
+- [产品需求文档（MVP v1.2）](docs/prd.md)：模板化记录 + 登录、趋势看板、实战成败、关键帧、素材库
+- [技术设计文档（MVP v1.2）](docs/tech-design.md)：模板/富文本/媒体架构、auth 前端、趋势聚合、关键帧、素材库 API
+- [数据趋势与战绩展示方案](docs/trends-design.md)：趋势看板、实战成败上下波动、日期/范围选择
+- [素材库、关键帧与富文本编排方案](docs/media-library-design.md)：素材库选择预览、关键帧抽取与插入、逐帧播放器规格
+- [移动端优先设计规范](docs/mobile-design.md)：Apple HIG 视觉基准、疲劳场景交互、逐帧播放器
+- [执行路线图](docs/roadmap.md)：R0-R8 分阶段交付、退出标准、当前进度跟踪
+
+> 视觉与交互基准：Apple HIG 风格 Demo `design-preview/ios-hig/`（含逐帧复盘播放器原型，可直接用浏览器打开预览）。
 
 ## 工程总览
 

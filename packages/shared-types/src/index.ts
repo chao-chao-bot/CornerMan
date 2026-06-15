@@ -70,10 +70,102 @@ export interface AuthResponse {
 }
 
 // ---------------------------------------------------------------------------
+// 模板（场景化训练记录）
+// ---------------------------------------------------------------------------
+
+/** 模板适用场景 */
+export type TemplateScene =
+  | "private_lesson"
+  | "sparring"
+  | "self_training"
+  | "custom";
+
+/** 模板 block 类型 */
+export type TemplateBlockType =
+  | "rich_text"
+  | "short_text"
+  | "rating"
+  | "checklist"
+  | "media_reference";
+
+/** 模板 block 定义 */
+export interface TemplateBlock {
+  id: string;
+  type: TemplateBlockType;
+  title: string;
+  placeholder?: string;
+  description?: string;
+  required?: boolean;
+}
+
+/** 模板结构（JSON 描述，前端 Renderer 据此动态渲染编辑区） */
+export interface TemplateSchema {
+  version: number;
+  blocks: TemplateBlock[];
+}
+
+/** 模板对外视图 */
+export interface TemplateDTO {
+  id: ID;
+  /** 系统模板为空，个人模板为归属用户 id */
+  userId?: ID;
+  name: string;
+  scene: TemplateScene;
+  description?: string;
+  schema: TemplateSchema;
+  isSystem: boolean;
+  version: number;
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
+}
+
+/** 创建自定义模板入参 */
+export interface CreateTemplateInput {
+  name: string;
+  scene: TemplateScene;
+  description?: string;
+  schema: TemplateSchema;
+}
+
+/** 更新自定义模板入参 */
+export interface UpdateTemplateInput {
+  name?: string;
+  scene?: TemplateScene;
+  description?: string;
+  schema?: TemplateSchema;
+}
+
+// ---------------------------------------------------------------------------
 // 训练与视频
 // ---------------------------------------------------------------------------
 
 export type TrainingType = "private_lesson" | "self_training" | "sparring";
+
+/** 单个 block 的填写内容（按 block id 存储） */
+export interface SessionContentBlock {
+  type: TemplateBlockType;
+  /** 富文本结构化 doc（rich_text） */
+  doc?: unknown;
+  /** 富文本纯文本镜像，便于搜索 / 摘要 */
+  plainText?: string;
+  /** 非富文本 block 的值（short_text / rating / checklist 等） */
+  value?: unknown;
+}
+
+/** 一次训练复盘的全部 block 内容 */
+export type SessionContent = Record<string, SessionContentBlock>;
+
+/** 实战结果 */
+export type SessionOutcomeResult = "win" | "loss" | "draw" | "unscored";
+
+/** 实战 / 约练成败结构（默认 unscored） */
+export interface SessionOutcome {
+  result: SessionOutcomeResult;
+  opponent?: string;
+  rounds?: number;
+  note?: string;
+  linkedProblemCodes?: string[];
+}
 
 export interface TrainingSession extends BaseEntity {
   userId: ID;
@@ -97,6 +189,25 @@ export interface CreateTrainingSessionInput {
   /** 本次重点 */
   focus?: string;
   userNote?: string;
+  /** 基于该模板创建，写入模板快照与空内容骨架 */
+  templateId?: ID;
+}
+
+/** 保存复盘内容入参 */
+export interface UpdateSessionContentInput {
+  content: SessionContent;
+}
+
+/** 更新训练基础信息 / 实战成败入参（全部可选，仅更新传入字段） */
+export interface UpdateSessionMetaInput {
+  title?: string;
+  trainingType?: TrainingType;
+  trainedAt?: ISODateString;
+  durationMin?: number;
+  location?: string;
+  focus?: string;
+  userNote?: string;
+  outcome?: SessionOutcome;
 }
 
 /** 训练记录对外视图（列表/详情返回） */
@@ -109,6 +220,16 @@ export interface TrainingSessionDTO {
   location?: string;
   focus?: string;
   userNote?: string;
+  /** 创建时选择的模板 id */
+  templateId?: ID;
+  /** 创建时的模板结构快照，避免模板后续修改影响旧记录 */
+  templateSnapshot?: TemplateSchema;
+  /** 用户填写的 block 内容 */
+  content?: SessionContent;
+  /** 实战 / 约练成败 */
+  outcome?: SessionOutcome;
+  /** 最近一次用户保存内容的时间 */
+  savedAt?: ISODateString;
   /** 复盘归档时间；有值表示用户已点「完成复盘」 */
   reviewedAt?: ISODateString;
   createdAt: ISODateString;

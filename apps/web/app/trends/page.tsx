@@ -1,17 +1,17 @@
 "use client";
 
-import { Card } from "@cornerman/ui";
-import { AppFrame } from "../components/app-frame";
+import { HigScaffold } from "../components/hig/scaffold";
 
 export default function TrendsPage() {
   return (
-    <AppFrame>
-      <h1 className="mb-[18px] text-[22px] font-bold tracking-tight">趋势</h1>
-      <Card>
-        <p className="py-6 text-center text-[13px] text-ink-3">
-          周 / 月训练量与评分趋势将在 P5 阶段开放。
-        </p>
-      </Card>
-    </AppFrame>
+    <HigScaffold title="趋势">
+      <div className="hig-large-title">
+        趋势
+        <span className="sub">训练量与状态曲线</span>
+      </div>
+      <div className="hig-empty">
+        周 / 月训练量、综合分趋势与实战成败统计将在趋势看板（R6）开放。
+      </div>
+    </HigScaffold>
   );
 }

@@ -111,6 +111,15 @@ export class VideosService {
     return this.toDTO(video, segments);
   }
 
+  async remove(userId: string, videoId: string): Promise<{ id: string }> {
+    const video = await this.getOwnedVideo(userId, videoId);
+    await this.prisma.video.update({
+      where: { id: video.id },
+      data: { deletedAt: new Date() }
+    });
+    return { id: video.id };
+  }
+
   private async getOwnedVideo(userId: string, videoId: string): Promise<Video> {
     const video = await this.prisma.video.findFirst({
       where: { id: videoId, deletedAt: null }

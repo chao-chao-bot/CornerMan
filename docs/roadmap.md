@@ -1,157 +1,235 @@
 # CornerMan 执行路线图
 
-> 本文档是项目**唯一的执行进度跟踪文档**：负责"做到哪了 / 下一步做什么"。
-> "做什么 / 为什么"看 [产品需求文档](prd.md)，"怎么做"看 [技术设计](tech-design.md)。
-> 每完成一个阶段或任务，更新这里的勾选状态，并按规则在 [worklog.md](worklog.md) 记一条。
+> 本路线图对应 [PRD v1.2](./prd.md)、[技术设计 v1.2](./tech-design.md) 与 [移动端优先设计规范](./mobile-design.md)，并配套 [数据趋势方案](./trends-design.md)、[素材库 / 关键帧方案](./media-library-design.md)。项目主线为“模板化训练记录 + 富文本 + 媒体附件”，并确立**移动端优先**与 **Apple HIG 视觉基准**（`design-preview/ios-hig/`）。已有账号、视频上传、转码、抽帧能力尽量复用；AI/CV 能力暂时后置。
 
 ## 设计原则
-- **纵切交付**：每个阶段打通一条从 UI → API → DB 的完整链路，而非按模块横向铺开；每阶段结束都要有可演示成果。
-- **退出标准驱动**：每阶段定义可验证的退出标准（Exit Criteria），达成才进入下一阶段。
-- **单人节奏**：用阶段 / 检查点推进，而非固定周数排期；同时保留与 PRD 6 周里程碑的映射，便于估算。
-- **遵守日志规则**：每次大型改动追加 [worklog.md](worklog.md)（见 `.cursor/rules/worklog.mdc`）。
-- **置信度优先**：AI 结论一律带置信度、可一键修订；任何被包装成"绝对判断"的设计都要砍掉（呼应 PRD 第 13 节准入）。
+
+- **记录闭环优先**：用户能稳定创建、填写、保存、回看训练复盘，优先级高于任何智能分析。
+- **模板驱动录入**：所有 Session 从模板创建，避免空白页输入。
+- **媒体异步与复用**：视频/图片上传和处理不能阻塞文字记录；素材沉淀到素材库可跨复盘引用。
+- **长期价值**：趋势看板呈现状态曲线与实战成败，把每次下滑 / 失败转化为可复盘的一次。
+- **低破坏迁移**：不急于删除旧 AI/CV 代码，先从产品主入口降级和隐藏；复用现成 auth 接口。
+- **HIG 基准**：所有界面以 `design-preview/ios-hig/` 为视觉与交互参照。
+- **移动端优先**：训练后疲劳场景下手机录入是第一战场，遵循「大触控区、防误触、免等待、少层级」（详见 [移动端优先设计规范](./mobile-design.md)）；PC 后续适配，不得反向牺牲移动端体验。
 
 ## 状态图例
-- `[x]` 完成 · `[~]` 进行中 · `[ ]` 未开始
 
-整体进度：**P0 完成，P1 完成，P2 完成，P3 完成，P4 进行中（ai-service 真实姿态分析已提前落地）**。
+- `[x]` 完成
+- `[~]` 进行中
+- `[ ]` 未开始
 
+当前新路线状态：**R0 已确认，R1 后端已落地（curl 烟测 11/11 通过），R2 复盘编辑器前端已落地（浏览器主链路验证通过），R3 待开始**。
+
+```text
+R0 方向重置 ✅ -> R1 模板数据层 ✅ -> R2 复盘编辑器 ✅ -> R3 媒体附件
+   -> R4 自定义模板 -> R5 登录态前端 -> R6 趋势看板与实战成败
+   -> R7 素材库与关键帧 -> R8 收尾上线
 ```
-P0 基建 ✅ → P1 账号+训练记录 ✅ → P2 视频上传+处理 ✅ → P3 AI 复盘闭环 ✅ → P4 片段+追踪 → P5 趋势+上线
-```
+
+> 设计阶段产出：HIG 风格 Demo（`design-preview/ios-hig/`，含逐帧复盘播放器原型）已完成并验证，作为后续实现的视觉与交互基准。
 
 ---
 
-## P0 · 工程基建（已完成）
-对应 PRD/tech-design 第 1-2 周「骨架」的工程底座部分。
+## R0 · 产品方向重置（已完成）
 
-- [x] monorepo 骨架（pnpm workspaces + Turborepo，4 apps / 5 packages）
-- [x] 本地 infra：Podman + podman-compose 拉起 Postgres / Redis / MinIO
-- [x] 四服务可启动验证：`web` / `api` / `ai-service` / `video-worker`
-- [x] 工作日志机制（`docs/worklog.md` + `.cursor/rules/worklog.mdc`）
+目标：把项目文档从 AI/CV 主线重置为模板化训练记录主线。
 
-**退出标准（已达成）**：`pnpm infra:up` 起依赖，四个服务均可启动，health/queue 连通。
+- [x] 明确 MVP 新定位：拳击训练记录与复盘工具
+- [x] 明确主流程：选择模板 -> 填富文本 -> 挂载视频/图片 -> 保存
+- [x] 明确 AI/CV 降级为未来扩展层
+- [x] 重写 PRD 与技术设计
 
----
-
-## P1 · 账号 + 训练记录纵切（已完成）
-第一条端到端纵切，验证 web ↔ api ↔ db ↔ ui 协作。对应 PRD US1/US2。
-
-- [x] `prisma migrate`：落地 `User`、`TrainingSession` 表（migration `init`，PrismaService/Module 全局注入）
-- [x] `api/auth`：邮箱/用户名 + 密码注册登录、bcrypt 哈希、JWT（access 15min + refresh 30d）、自定义 `JwtAuthGuard`、`GET /auth/me`
-- [x] `api/training-sessions`：创建 / 列表 / 详情（受 JWT 守卫，userId 取自 token）
-- [x] `packages/api-client`：fetch 封装（自动 Bearer + 结构化错误），auth 与 training-sessions 调用
-- [x] `packages/ui`：从 `design-preview/coach-lab` 迁移基础组件（Button/Input/Textarea/Field/Card/Tabs/AppShell）
-- [x] `web`：登录/注册页、训练列表页、新建训练页、详情页接通真实接口，客户端路由守卫 `AppFrame`
-- [x] 响应式：PC 侧边导航 + 内容栅格，H5 窄屏自适应
-
-**退出标准（已达成）**：注册 → 登录 → 创建并查看训练记录端到端跑通（curl + 浏览器冒烟均通过），PC 与移动端 H5 布局可用，`tsc --noEmit` 全绿。
-
-> 备注：本机 5432 端口被既有 `postgresql@14` 占用，容器 Postgres 宿主机端口改为 **5433**（见 `infra/docker-compose.yml` 与 `.env`）。
+**退出标准**：团队后续讨论和开发均以 v1.1 文档为准，不再把“自动 AI 报告”视为 MVP 必达项。
 
 ---
 
-## P2 · 视频上传 + 处理（已完成）
-对应 PRD「视频上传 / 视频处理」Must 项。
+## R1 · 模板数据层
 
-- [x] `api/videos`：MinIO 预签名 PUT 直传凭证、上传完成回调、`Video` 状态机（uploading→uploaded→processing→ready/failed），`StorageService` 抽象预留阿里云 OSS
-- [x] `web`：上传组件（PC 拖拽 + H5 `capture` 相册/拍摄），XHR 进度条 + 失败提示
-- [x] `video-worker`：消费 `video.process`，`ffmpeg` 转码 720p/360p + 首帧封面 + 每 1s 抽帧
-- [x] `video-worker`：基于场景切点粗切片，产出候选 `VideoSegment`，写回 ready 并入队 `ai.analyze`
+目标：让系统具备模板定义、模板读取和基于模板创建 Session 的能力。
 
-**退出标准（已达成）**：视频可经预签名直传，后台自动转码并产出封面与候选片段；curl 全链路（init→PUT→complete→ready）通过，MinIO CORS 对 `localhost:3000` 预检/PUT 正常，封面签名 URL 可读，`ai.analyze` 已入队待 P3 消费。
+- [x] Prisma 新增 `Template` 模型
+- [x] `TrainingSession` 增加 `templateId`、`templateSnapshot`、`content`、`outcome`、`savedAt`
+- [x] 在 seed 中写入三套系统模板：私教课、实战、自训（`prisma/seed.ts` + `tsx`）
+- [x] `packages/shared-types` 新增 Template schema、Block 类型、Session content、Outcome 类型
+- [x] `api/templates`：列表、详情、创建、更新、软删、复制接口 + schema 运行时校验
+- [x] `api/training-sessions`：创建 Session 时支持 `templateId` 写入快照与空内容骨架；新增 `PATCH :id/content`、`PATCH :id/meta`（含 outcome）
 
-> 前置：本机需安装 `ffmpeg`/`ffprobe`；MinIO 通过容器环境变量 `MINIO_API_CORS_ALLOW_ORIGIN` 放行浏览器直传（见 `infra/docker-compose.yml`）。
-
----
-
-## P3 · AI 复盘闭环（核心价值）✅
-对应 PRD 第 3-4 周「AI 闭环」与第 8 节"起草 + 定稿"模型。`ai-service` 维持 stub，优先打通链路。LLM 采用 `LLMProvider` 抽象，默认 **DeepSeek**（OpenAI 兼容、JSON Output、纯文本），无 key 或调用失败时自动降级确定性 stub，链路始终能出 draft。
-
-- [x] `ai-prompts`：报告起草 prompt 模板（结构化输入 → summary/items/scores 严格 JSON）+ `renderReportDraftPrompt` + 版本号，改为 build 到 dist
-- [x] 打通 `video-worker（第二个 ai.analyze Worker）→ DeepSeek/stub → AnalysisReport(draft) + Score(ai)`，附证据片段引用，按 session 幂等
-- [x] 报告改为 **session 级聚合**（体验修正）：`analyzeSession()` 聚合该训练下全部 ready 视频的片段与姿态指标，等所有视频处理完再生成完整 draft；补传视频不静默改写，由用户「重新生成完整复盘」
-- [x] `api/reports`：`draft` 只读快照 + `final` 可编辑两层组装与读写（GET 聚合 + finalize 懒克隆）
-- [x] `api/scoring`：7 维评分（AI 原始分 + 置信度 + 用户修订分并存），返回 `score/confidence/rationale/evidence`
-- [x] `api/revisions`：逐条「采纳 / 修改 / 删除 / 新增」，保留 AI 原文（aiOriginal 快照）
-- [x] `web`：报告页（draft/final 切换、逐条修订、滑块改分、证据片段时间 chip、draft 轮询）
-
-**退出标准（已达成）**：上传后自动异步出 draft 报告（summary + items + 7 维评分）；用户可逐条定稿且 AI 原文保留；改分与修订均落库。curl 全链路（注册→建 session→上传→ready→draft→finalize→edit/add/delete→改分）通过，draft 始终不可变；web 报告页渲染并可交互；`tsc --noEmit` 全绿。DeepSeek 真实生成已接通（当前所提供 key 经直连验证为 401 失效，已自动降级 stub，更换有效 key 即生效）。
+**退出标准**：调用 API 能拿到三套系统模板，并能用任一模板创建带 `templateSnapshot` 的 Session。✅ 已达成（`apps/api/scripts/smoke-templates.sh` 烟测 11/11 通过）。
 
 ---
 
-## P4 · 片段库 + 问题追踪
-对应 PRD US5/US8 与「片段库 / 问题追踪」。
+## R2 · 模板化复盘编辑器
 
-- [x] `ai-service` 真实姿态分析（提前启动）：MediaPipe Pose（CPU）+ OpenCV ~8fps 采样，产出动作片段（punch_burst / high_activity / low_activity）与量化指标（出拳次数、护手到位率、站距、活动占比）；`video-worker` 切片改为动作驱动（ai-service 失败/降级自动回退机械切片），姿态指标经 job payload 进 LLM prompt
-- [x] 多视频 / 补传报告覆盖状态（体验修正）：`reports` 返回 `coverage`（已纳入 / 未纳入视频），视频卡片标注「已纳入 / 未纳入复盘」、报告顶部提示「N 个新视频尚未纳入」并提供「重新生成完整复盘」，证据片段与视频标题统一「视频 N」序号
-- [ ] 片段库：收藏、打标签、写一句话备注、按标签检索
-- [ ] `api/problem-threads`：同类问题跨训练串联，状态机（已改进 / 仍存在 / 新增），含出现次数与改进证据
-- [ ] `web`：片段库页与问题追踪页
+目标：把 Session 详情页从 AI 报告页改为模板化编辑页。
 
-**退出标准**：能按问题标签反查所有相关片段；同一问题的多次出现可在追踪/趋势中看到。
+- [x] 首页底部 `+` FAB + Bottom Sheet 模板选择（替代整页跳转）
+- [x] 新建主按钮改为“新建复盘”（FAB），系统/个人模板分组展示
+- [x] 训练日期选择（默认今天，含「今天 / 昨天 / 选择日期」快捷；编辑页内日期可改）
+- [x] `/sessions/[id]` 模板 Session 默认展示 `SessionEditor`（全 HIG 页）
+- [x] 根据 `templateSnapshot.blocks` 动态渲染独立 Block 卡片
+- [x] 实现最小富文本编辑能力：标题、列表、加粗、高亮（TipTap，为关键帧节点预留扩展点）
+- [x] 引入 `framer-motion`：Bottom Sheet 弹出 + 下滑/蒙层关闭、卡片按压反馈
+- [x] Block 空态 placeholder 引导；rating/checklist/short_text 块
+- [x] `PATCH /training-sessions/:id/content` 保存 block 内容（800ms 防抖自动保存）
+- [x] 保存状态展示：保存中 / 已保存 / 保存失败（导航右侧胶囊）
+- [x] 实战成败编辑（胜/平/负/未记 + 对手 + 回合）写入 `PATCH :id/meta`
+- [x] 模板 Session 隐藏原 AI 报告、评分、姿态指标入口（旧 AI Session 维持原页面）
 
----
+**退出标准**：移动端用户能通过 FAB + Bottom Sheet 选模板创建 Session，在预加载的 Block 中填写并自动保存，刷新页面后内容不丢失。✅ 已达成（浏览器走通 登录→FAB→选实战模板→编辑器→输入富文本+选「胜」→API 校验 content/outcome/savedAt 落库，刷新后内容回显）。
 
-## P5 · 趋势 + 分享 + 上线
-对应 PRD 第 6 周「趋势与上线」。
-
-- [ ] `api/metrics`：`weekly_metrics` 聚合（物化视图或定时任务）
-- [ ] `web`：趋势看板（周 / 月训练量、评分趋势、重复问题、训练完成率）
-- [ ] `api/export`：报告只读脱敏链接（不做 PDF/图片）
-- [ ] 业务埋点：激活、修订率、片段沉淀、留存、趋势使用、AI 质量（对齐 PRD 第 11 节）
-- [ ] 灰度上线（阿里云 ECS + Docker Compose）
-
-**退出标准**：满足 PRD 第 13 节准入——用户无需人工运营即可走完「创建训练 → 上传 → 看到 AI 报告 → 修订并保存 → 看到趋势」全流程，PC 与移动端均可用。
+> 说明：素材库选择 / 关键帧插入（`media_reference` 块当前为占位）留待 R7；自定义模板 Builder 留待 R4。
 
 ---
 
-## 横切关注点（贯穿所有阶段）
-不属于某个单独阶段，但每个阶段都要带着走，避免债务累积。
+## R3 · 媒体附件异步化
 
-- **CI**：GitHub Actions，PR 必跑 `lint + 单测 + type-check`（turbo 远程缓存）。
-- **测试**：`vitest`（单测）、`playwright`（关键路径，`desktop-chrome` + `iphone-13` 两端）、`pytest`（ai-service）。
-- **可观测性**：`pino` 日志、Sentry 前后端错误上报。
-- **安全**：视频私有 Bucket + 签名 URL + 短期 STS；登录/上传接口限流（Redis 滑动窗口）。
-- **文档**：每阶段结束更新本路线图勾选状态 + `worklog.md`。
+目标：把视频能力从“触发 AI 报告”改为“Session 素材附件”。
 
-## 阶段依赖关系
+> 落地范围（最小改造）：复用现有 `Video` 表与上传管线，把视频以「异步附件卡片」嵌入 HIG 复盘编辑器；图片附件与 worker 解耦（新表 / 拆队列）留待后续。AI 报告对模板复盘不再展示，已在 R2 编辑器中去除阶段条。
+
+- [x] 确认采用 `MediaAttachment` 新表或临时复用 `Video` 表 —— 复用 `Video` 表
+- [ ] ~~若新增 `MediaAttachment`，实现视频/图片统一上传模型~~（图片留待后续）
+- [x] 选择文件后立即生成占位卡片（不等上传完成）
+- [x] 卡片遮罩 + 环形进度，状态 `uploading -> uploaded/processing -> ready/failed`
+- [x] 上传期间复盘内容可继续编辑，禁止全屏 Loading
+- [x] 视频 ready 后展示封面，点击就地播放（playbackUrl）
+- [x] 上传失败支持重试，已上传视频支持删除（`DELETE /videos/:id` 软删）
+- [x] 移除“等待 AI 分析中 / 待复盘 / 已复盘”等旧阶段条文案（HIG 编辑器无阶段条）
+
+**退出标准（达成）**：移动端用户可以一边填写复盘、一边上传视频，看到卡片上的环形进度；上传失败可重试、已上传可删除，且不影响内容保存。图片附件与 worker 解耦后续迭代。
+
+---
+
+## R4 · 自定义模板 Builder
+
+目标：允许用户保存自己的训练模板，例如“力量体能训练”。
+
+- [ ] 新增 `/templates` 页面
+- [ ] 展示系统模板和个人模板
+- [ ] 支持从系统模板复制为个人模板
+- [ ] 字段库「点击添加 + 长按拖拽把手排序」（移动端优先），删除用 SwipeAction
+- [ ] 支持修改 block 标题、说明、类型、是否必填，必填项删除保护
+- [ ] 保存后可在新建入口 Bottom Sheet 中选择个人模板
+- [ ] 对 Template schema 做运行时校验，避免非法 block 进入编辑器
+
+**退出标准**：用户能在移动端创建一个个人模板（如「力量体能训练」），并用该模板创建新的训练复盘。
+
+---
+
+## R5 · 登录态前端补全
+
+目标：把现成的后端 auth 接口接成完整的前端登录闭环（后端不新增）。
+
+- [ ] 登录 / 注册页改为 HIG 风格（登录默认在前，即时校验，清晰错误文案）
+- [ ] `api-client` 增加 401 拦截 + `refreshToken` 自动续期并重放原请求
+- [ ] refresh 失效时清理登录态并跳转登录
+- [ ] 受保护页登录守卫（必要时调 `me` 校验），引入 Auth Context
+- [ ] `/sessions` 等页面读取上下文当前用户，去掉重复 `localStorage` 读取
+
+**退出标准**：用户可注册 / 登录；access 过期能无感续期；未登录访问受保护页跳登录。
+
+---
+
+## R6 · 趋势看板与实战成败
+
+目标：让训练数据沉淀为可回看的状态曲线，并支持实战成败展示（详见 [趋势方案](./trends-design.md)）。
+
+- [ ] `TrainingSession` 增加 `outcome` 字段；实战模板加入 `胜 / 负 / 平 / 不计` 录入（默认不计）
+- [ ] 后端 `GET /metrics/trends`、`GET /metrics/outcomes` 聚合接口（可用 `WeeklyMetric` 预聚合）
+- [ ] `/trends` 页落地：时间范围分段控件 + 自定义日期范围 Sheet
+- [ ] 核心概览卡 / 主趋势折线（可切指标）/ 关键指标卡（环比上下）/ 训练结构 / 波峰波谷
+- [ ] 实战 Form Guide 近况条 + 胜率 / 状态折线；负场卡片展示暴露问题与「已改进」
+- [ ] 数据点 / 圆点可跳回对应复盘；缺 AI / 视频数据时降级而非报错
+- [ ] 导航 `/trends` 由「即将开放」改为可用
+
+**退出标准**：用户能按时间范围查看训练量与状态曲线，记录并回看实战成败，且各处「上 / 下」语义一致（上绿 / 下橙中性）。
+
+---
+
+## R7 · 素材库与富文本关键帧
+
+目标：媒体沉淀为可复用素材库，并把视频关键帧插入富文本（详见 [素材库 / 关键帧方案](./media-library-design.md)）。
+
+- [ ] `MediaAttachment` 增加 `userId / kind(keyframe) / sourceVideoId / timeMs / tags`
+- [ ] `GET /media` 用户级素材库（类型 / 训练 / 日期 / 标签筛选）+ `GET /media/:id`
+- [ ] `/library` 页：HIG 缩略图网格 + 筛选 + 预览（视频进逐帧播放器）；导航 `/segments` 升级为素材库
+- [ ] 复盘编辑器「从素材库选择」底部 Sheet 选择器（引用而非复制）
+- [ ] web 落地逐帧复盘播放器（对齐 `design-preview/ios-hig/` 原型）
+- [ ] `POST /videos/:id/keyframe` 精确抽帧；前端 canvas 占位 + ready 替换
+- [ ] 富文本 `keyframe` 节点：带时码、可补批注、点击跳回视频该时刻
+- [ ] 删除被引用素材有保护 / 提示
+
+**退出标准**：用户能在素材库筛选预览、在复盘中引用已有素材，并把逐帧定位的关键帧插入复盘正文、点击跳回视频。
+
+---
+
+## R8 · 收尾上线
+
+目标：验证 MVP 新闭环可用，清理旧文案和入口。
+
+- [ ] 训练列表按模板、训练类型、日期筛选
+- [ ] 移动端录入体验检查：触控尺寸基线、软键盘收起、暗色主题、HIG 一致性
+- [ ] 关键路径 Playwright（含 `iphone-13`）覆盖：注册登录 -> FAB 选模板 -> 选日期 -> 编辑 -> 插入关键帧 / 引用素材 -> 保存 -> 回看 -> 趋势看板
+- [ ] README 和产品文案同步新定位
+- [ ] 旧 AI/CV 入口全部隐藏或标注“实验能力”
+- [ ] 核心埋点：注册登录、创建复盘、保存内容、上传 / 引用素材、插入关键帧、自定义模板创建、查看趋势
+
+**退出标准**：无需 AI/CV 服务，用户也能完整走通“登录 -> 选择模板 -> 选日期 -> 富文本 + 关键帧 -> 引用 / 上传媒体 -> 保存 -> 回看 -> 趋势”。
+
+---
+
+## 新阶段依赖关系
 
 ```mermaid
 flowchart LR
-  P0["P0 工程基建 (已完成)"] --> P1["P1 账号+训练记录"]
-  P1 --> P2["P2 视频上传+处理"]
-  P2 --> P3["P3 AI 复盘闭环 (核心)"]
-  P3 --> P4["P4 片段库+问题追踪"]
-  P4 --> P5["P5 趋势+分享+上线"]
+  R0["R0 方向重置"] --> R1["R1 模板数据层"]
+  R1 --> R2["R2 复盘编辑器"]
+  R2 --> R3["R3 媒体附件"]
+  R2 --> R4["R4 自定义模板"]
+  R1 --> R5["R5 登录态前端"]
+  R3 --> R6["R6 趋势看板+成败"]
+  R3 --> R7["R7 素材库+关键帧"]
+  R5 --> R8["R8 收尾上线"]
+  R4 --> R8
+  R6 --> R8
+  R7 --> R8
 
-  subgraph crosscut [横切关注点]
-    CI["CI / 测试"]
-    Obs["可观测性 / 安全"]
-  end
-
-  crosscut -.贯穿.-> P1
-  crosscut -.贯穿.-> P3
-  crosscut -.贯穿.-> P5
+  AI["AI/CV 扩展层"] -.后置.-> R8
 ```
 
-主线严格串行：P3 依赖 P2 产出的帧与片段，P2 依赖 P1 的账号与训练记录。`ai-service`（真实姿态测量）已在 P4 初提前替换 stub（MediaPipe Pose 动作驱动切片），且保留降级回退，不阻塞主线。
+## 与旧路线的关系
+
+旧 P0-P4 已完成的资产不直接废弃：
+
+- 账号、Session、列表、新建训练页面继续复用；
+- 视频上传、对象存储、后台转码继续复用；
+- `video-worker` 继续承担媒体处理；
+- `ai-service`、`AnalysisReport`、`Score`、`VideoSegment` 暂时从主入口隐藏，后续作为 AI/CV 插件回归。
+
+需要改变的是产品主承诺：MVP 不再要求用户等待 AI 报告，不再把自动评分作为完成复盘的前提。
 
 ## 风险登记
-引用 [PRD 第 13 节](prd.md) 与 [tech-design 第 14 节](tech-design.md)，落到阶段执行：
 
-| 风险 | 影响阶段 | 对策 |
+| 风险 | 影响 | 对策 |
 | --- | --- | --- |
-| 视频角度/遮挡/光线/高速运动影响 AI 判断 | P3 | 结论强制带置信度，用户可一键修订/删除；不做"绝对判断" |
-| 用户只默读、不愿修订 | P3 | 修订入口极轻（一键采纳、滑块改分、卡片右上角即删）；埋点监控修订率 |
-| LLM 成本 | P3 | 仅对关键片段调用 VL，普通片段走规则 |
-| 视频上传体验差 | P2 | 分片直传 + 预压缩 + 后台续传 |
-| 单人节奏易停滞 | 全程 | 纵切交付，每阶段都有可演示成果维持正反馈 |
+| 旧 AI 代码和新模板主线混杂 | 用户理解混乱，开发边界不清 | 先隐藏旧入口，文案统一改为记录工具 |
+| 富文本编辑器集成过重 | 拖慢 MVP | 只做最小工具栏，不做复杂块编辑器 |
+| 自定义模板 Builder 过度设计 | 偏离核心录入体验 | 先支持复制和增删 block，不做模板市场 |
+| 媒体模型迁移复杂 | 影响上传稳定性 | 可先复用 `Video` 表，后续再统一为 `MediaAttachment` |
+| 移动端富文本体验差 | 训练后不愿记录 | 优先优化单列输入和保存反馈 |
+| 趋势聚合实时计算压力 | 看板慢 | 用 `WeeklyMetric` 预聚合，按周期落库 |
+| 胜负展示带来挫败感 | 用户抗拒记录实战 | 默认「不计」；下滑用中性 / 橙色；负场强调问题闭环而非计分 |
+| 关键帧抽取等待 | 阻塞编辑 | 前端 canvas 占位即时插入，后端精确抽帧 ready 后替换 |
 
-## 上线准入清单（P5 收尾核对）
-- [ ] 全流程（创建→上传→AI 报告→修订→趋势）无人工运营可走通
-- [ ] PC 与移动端 H5 关键路径 playwright 均通过
-- [ ] AI 结论均带置信度且可修订
-- [ ] 视频私有存储 + 签名访问校验通过
-- [ ] 核心埋点（激活 / 修订率 / 留存 / 趋势使用）已上报
-- [ ] 关键接口限流与错误上报生效
+## 上线准入清单
+
+- [ ] 用户可注册 / 登录，登录态可自动续期
+- [ ] 三套系统模板可用，至少一个个人模板创建流程可用
+- [ ] 复盘可选训练日期；Session 内容（含关键帧节点）刷新不丢失
+- [ ] 视频 / 图片上传不阻塞内容保存
+- [ ] 素材库可筛选预览，复盘可引用已有素材
+- [ ] 逐帧播放器可帧步进 / 慢放，并可「插入这一帧」到富文本
+- [ ] 趋势看板可按时间范围聚合主曲线与关键指标环比；实战成败可记录并展示
+- [ ] 移动端能完成主要记录路径，满足 HIG 基准、触控尺寸基线与暗色主题
+- [ ] 旧 AI/CV 文案不再出现在 MVP 主流程
+- [ ] AI/CV 服务关闭时核心路径仍可用

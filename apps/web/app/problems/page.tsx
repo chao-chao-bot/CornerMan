@@ -1,17 +1,17 @@
 "use client";
 
-import { Card } from "@cornerman/ui";
-import { AppFrame } from "../components/app-frame";
+import { HigScaffold } from "../components/hig/scaffold";
 
 export default function ProblemsPage() {
   return (
-    <AppFrame>
-      <h1 className="mb-[18px] text-[22px] font-bold tracking-tight">问题追踪</h1>
-      <Card>
-        <p className="py-6 text-center text-[13px] text-ink-3">
-          跨训练的问题串联（ProblemThread）将在 P4 阶段开放。
-        </p>
-      </Card>
-    </AppFrame>
+    <HigScaffold title="问题">
+      <div className="hig-large-title">
+        问题
+        <span className="sub">跨训练的问题串联</span>
+      </div>
+      <div className="hig-empty">
+        把反复出现的防守漏洞 / 技术问题跨训练串联追踪，将在后续阶段开放。
+      </div>
+    </HigScaffold>
   );
 }

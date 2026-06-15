@@ -1,26 +1,45 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma, type TrainingSession } from "@prisma/client";
 import type {
+  SessionContent,
+  SessionContentBlock,
   SessionListItemDTO,
+  SessionOutcome,
   SessionReportStatus,
+  TemplateSchema,
   TrainingSessionDTO,
   TrainingType
 } from "@cornerman/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { VideoQueueService } from "../queue/video-queue.service";
+import { TemplatesService } from "../templates/templates.service";
 import { CreateTrainingSessionDto } from "./dto/create-training-session.dto";
+import { UpdateContentDto } from "./dto/update-content.dto";
+import { UpdateSessionMetaDto } from "./dto/update-session-meta.dto";
 
 @Injectable()
 export class TrainingSessionsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly queue: VideoQueueService
+    private readonly queue: VideoQueueService,
+    private readonly templates: TemplatesService
   ) {}
 
   async create(
     userId: string,
     dto: CreateTrainingSessionDto
   ): Promise<TrainingSessionDTO> {
+    let templateSnapshot: TemplateSchema | undefined;
+    let content: SessionContent | undefined;
+    if (dto.templateId) {
+      const template = await this.templates.getVisibleOrThrow(
+        userId,
+        dto.templateId
+      );
+      templateSnapshot = template.schema as unknown as TemplateSchema;
+      content = this.emptyContent(templateSnapshot);
+    }
+
     const session = await this.prisma.trainingSession.create({
       data: {
         userId,
@@ -30,7 +49,64 @@ export class TrainingSessionsService {
         durationMin: dto.durationMin,
         location: dto.location,
         focus: dto.focus,
-        userNote: dto.userNote
+        userNote: dto.userNote,
+        templateId: dto.templateId,
+        templateSnapshot: templateSnapshot
+          ? (templateSnapshot as unknown as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+        content: content
+          ? (content as unknown as Prisma.InputJsonValue)
+          : Prisma.JsonNull
+      }
+    });
+    return this.toDTO(session);
+  }
+
+  /** 按模板 blocks 生成空内容骨架，避免前端面对空对象 */
+  private emptyContent(schema: TemplateSchema): SessionContent {
+    const content: SessionContent = {};
+    for (const block of schema.blocks ?? []) {
+      const entry: SessionContentBlock = { type: block.type };
+      content[block.id] = entry;
+    }
+    return content;
+  }
+
+  async updateContent(
+    userId: string,
+    id: string,
+    dto: UpdateContentDto
+  ): Promise<TrainingSessionDTO> {
+    await this.findOne(userId, id); // 归属校验
+    const session = await this.prisma.trainingSession.update({
+      where: { id },
+      data: {
+        content: dto.content as unknown as Prisma.InputJsonValue,
+        savedAt: new Date()
+      }
+    });
+    return this.toDTO(session);
+  }
+
+  async updateMeta(
+    userId: string,
+    id: string,
+    dto: UpdateSessionMetaDto
+  ): Promise<TrainingSessionDTO> {
+    await this.findOne(userId, id); // 归属校验
+    const session = await this.prisma.trainingSession.update({
+      where: { id },
+      data: {
+        title: dto.title,
+        trainingType: dto.trainingType,
+        trainedAt: dto.trainedAt ? new Date(dto.trainedAt) : undefined,
+        durationMin: dto.durationMin,
+        location: dto.location,
+        focus: dto.focus,
+        userNote: dto.userNote,
+        ...(dto.outcome
+          ? { outcome: dto.outcome as unknown as Prisma.InputJsonValue }
+          : {})
       }
     });
     return this.toDTO(session);
@@ -148,6 +224,12 @@ export class TrainingSessionsService {
       location: session.location ?? undefined,
       focus: session.focus ?? undefined,
       userNote: session.userNote ?? undefined,
+      templateId: session.templateId ?? undefined,
+      templateSnapshot:
+        (session.templateSnapshot as unknown as TemplateSchema) ?? undefined,
+      content: (session.content as unknown as SessionContent) ?? undefined,
+      outcome: (session.outcome as unknown as SessionOutcome) ?? undefined,
+      savedAt: session.savedAt?.toISOString() ?? undefined,
       reviewedAt: session.reviewedAt?.toISOString() ?? undefined,
       createdAt: session.createdAt.toISOString(),
       updatedAt: session.updatedAt.toISOString()

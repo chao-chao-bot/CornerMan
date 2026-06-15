@@ -23,6 +23,25 @@ model User {
 
   sessions       TrainingSession[]
   problemThreads ProblemThread[]
+  templates      Template[]
+}
+
+model Template {
+  id          String   @id @default(cuid())
+  userId      String? // null 表示系统模板；有值表示个人模板
+  name        String
+  scene       String // private_lesson | sparring | self_training | custom
+  description String?
+  schema      Json // { version, blocks: [...] }
+  isSystem    Boolean  @default(false)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model TrainingSession {
@@ -35,6 +54,11 @@ model TrainingSession {
   location     String?
   focus        String? // 本次重点
   userNote     String?
+  templateId       String? // 创建时选择的模板
+  templateSnapshot Json? // 创建时模板结构快照，避免模板后续修改影响旧记录
+  content          Json? // 用户填写的 block 内容（按 block id）
+  outcome          Json? // 实战 / 约练成败（result/opponent/rounds/...）
+  savedAt          DateTime? // 最近一次保存内容的时间
   reviewedAt   DateTime? // 用户点「完成复盘」的时间，null 表示尚未归档
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

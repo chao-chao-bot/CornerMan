@@ -2,15 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Field, Input, Tabs } from "@cornerman/ui";
 import { ApiError } from "@cornerman/api-client";
 import { api } from "../lib/api";
 import { saveAuth } from "../lib/auth";
+import { useHigTheme } from "../components/hig/use-hig-theme";
 
-type Mode = "register" | "login";
+type Mode = "login" | "register";
 
 export default function LoginPage() {
   const router = useRouter();
+  const dark = useHigTheme();
   const [mode, setMode] = useState<Mode>("login");
   const [identifier, setIdentifier] = useState("");
   const [email, setEmail] = useState("");
@@ -39,94 +40,124 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-bg px-4">
-      <div className="w-full max-w-[380px] rounded-lg border border-line bg-surface p-7 shadow-sm">
-        <div className="flex items-center gap-2.5 text-[18px] font-bold">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-brand text-sm font-extrabold text-white">
-            C
-          </span>
-          CornerMan
-        </div>
-        <p className="mt-1 text-[13px] text-ink-2">拳击训练后的 AI 复盘教练</p>
+    <div className="hig" data-theme={dark ? "dark" : "light"}>
+      <div className="hig-page" style={{ paddingBottom: 0 }}>
+        <div className="hig-auth">
+          <div className="hig-brand">
+            <span className="mark">C</span>
+            CornerMan 拳角
+          </div>
+          <p className="tagline">拳击训练记录与复盘</p>
 
-        <Tabs
-          className="mt-5"
-          value={mode}
-          onChange={(k) => setMode(k as Mode)}
-          items={[
-            { key: "login", label: "登录" },
-            { key: "register", label: "注册" }
-          ]}
-        />
-
-        <form className="mt-5" onSubmit={onSubmit}>
-          {mode === "login" ? (
-            <Field label="邮箱 / 用户名" htmlFor="identifier">
-              <Input
-                id="identifier"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="you@example.com 或 用户名"
-                autoComplete="username"
-              />
-            </Field>
-          ) : (
-            <>
-              <Field label="邮箱" htmlFor="email">
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                />
-              </Field>
-              <Field label="用户名" htmlFor="username">
-                <Input
-                  id="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="3-32 位"
-                  autoComplete="username"
-                />
-              </Field>
-              <Field label="昵称（拳手名）" htmlFor="displayName">
-                <Input
-                  id="displayName"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="例如：Iron Li"
-                />
-              </Field>
-            </>
-          )}
-          <Field
-            label="密码"
-            htmlFor="password"
-            hint={mode === "register" ? "至少 8 位，注册成功后直接进入" : undefined}
-          >
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="至少 8 位"
-              autoComplete={mode === "register" ? "new-password" : "current-password"}
-            />
-          </Field>
-
-          {error && (
-            <div className="mb-3 rounded-sm border border-risk-line bg-risk-soft px-3 py-2 text-[12.5px] text-risk">
-              {error}
+          <form className="auth-card" onSubmit={onSubmit}>
+            <div style={{ padding: "0 16px" }}>
+              <div className="hig-seg" style={{ display: "flex", width: "100%" }}>
+                <button
+                  type="button"
+                  style={{ flex: 1 }}
+                  className={mode === "login" ? "on" : ""}
+                  onClick={() => setMode("login")}
+                >
+                  登录
+                </button>
+                <button
+                  type="button"
+                  style={{ flex: 1 }}
+                  className={mode === "register" ? "on" : ""}
+                  onClick={() => setMode("register")}
+                >
+                  注册
+                </button>
+              </div>
             </div>
-          )}
 
-          <Button type="submit" variant="primary" size="lg" block disabled={loading}>
-            {loading ? "处理中…" : mode === "register" ? "注册并进入" : "登录"}
-          </Button>
-        </form>
+            <div className="hig-form" style={{ marginTop: 14 }}>
+              {mode === "login" ? (
+                <label className="hig-field">
+                  <span className="fl">账号</span>
+                  <input
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="邮箱 或 用户名"
+                    autoComplete="username"
+                  />
+                </label>
+              ) : (
+                <>
+                  <label className="hig-field">
+                    <span className="fl">邮箱</span>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                    />
+                  </label>
+                  <label className="hig-field">
+                    <span className="fl">用户名</span>
+                    <input
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="3-32 位"
+                      autoComplete="username"
+                    />
+                  </label>
+                  <label className="hig-field">
+                    <span className="fl">昵称</span>
+                    <input
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="拳手名，例如 Iron Li"
+                    />
+                  </label>
+                </>
+              )}
+              <label className="hig-field">
+                <span className="fl">密码</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="至少 8 位"
+                  autoComplete={
+                    mode === "register" ? "new-password" : "current-password"
+                  }
+                />
+              </label>
+            </div>
+
+            {error && (
+              <p
+                style={{
+                  color: "var(--red)",
+                  fontSize: 13,
+                  padding: "10px 32px 0"
+                }}
+              >
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              className="hig-btn-filled"
+              disabled={loading}
+            >
+              {loading
+                ? "处理中…"
+                : mode === "register"
+                  ? "注册并进入"
+                  : "登录"}
+            </button>
+            <p className="hig-section-footer" style={{ textAlign: "center" }}>
+              {mode === "register"
+                ? "注册成功后直接进入，无需邮箱验证。"
+                : "还没有账号？点上方「注册」。"}
+            </p>
+          </form>
+        </div>
       </div>
-    </main>
+    </div>
   );
 }

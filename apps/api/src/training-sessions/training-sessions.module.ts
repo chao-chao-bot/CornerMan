@@ -1,14 +1,15 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
+import { TemplatesModule } from "../templates/templates.module";
 import { TrainingSessionsService } from "./training-sessions.service";
 import { TrainingSessionsController } from "./training-sessions.controller";
 
 /**
  * 训练模块
- * 训练创建、类型、感受、本次重点、状态机。
+ * 训练创建、类型、感受、本次重点、模板快照与内容保存、状态机。
  */
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, TemplatesModule],
   controllers: [TrainingSessionsController],
   providers: [TrainingSessionsService]
 })

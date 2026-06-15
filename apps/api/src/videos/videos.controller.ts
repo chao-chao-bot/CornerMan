@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  UseGuards
+} from "@nestjs/common";
 import type {
   InitVideoUploadResponse,
   VideoDTO
@@ -44,5 +52,13 @@ export class VideosController {
     @Param("id") id: string
   ): Promise<VideoDTO> {
     return this.videos.getOne(user.userId, id);
+  }
+
+  @Delete("videos/:id")
+  remove(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string
+  ): Promise<{ id: string }> {
+    return this.videos.remove(user.userId, id);
   }
 }

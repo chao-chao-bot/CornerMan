@@ -48,4 +48,8 @@ export class CreateTrainingSessionDto {
   @IsString()
   @MaxLength(2000)
   userNote?: string;
+
+  @IsOptional()
+  @IsString()
+  templateId?: string;
 }

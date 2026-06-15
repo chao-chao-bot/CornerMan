@@ -8,6 +8,7 @@ import type {
   AuthResponse,
   CompleteVideoUploadInput,
   CreateRevisionInput,
+  CreateTemplateInput,
   CreateTrainingSessionInput,
   InitVideoUploadInput,
   InitVideoUploadResponse,
@@ -18,7 +19,11 @@ import type {
   ScoreDTO,
   SessionListItemDTO,
   SessionReportDTO,
+  TemplateDTO,
   TrainingSessionDTO,
+  UpdateSessionContentInput,
+  UpdateSessionMetaInput,
+  UpdateTemplateInput,
   VideoDTO
 } from "@cornerman/shared-types";
 
@@ -101,10 +106,34 @@ export function createApiClient(options: ApiClientOptions) {
         auth: false
       }),
     me: () => request<PublicUser>("/auth/me"),
+    // ---- templates ----
+    listTemplates: () => request<TemplateDTO[]>("/templates"),
+    getTemplate: (id: string) => request<TemplateDTO>(`/templates/${id}`),
+    createTemplate: (input: CreateTemplateInput) =>
+      request<TemplateDTO>("/templates", { method: "POST", body: input }),
+    updateTemplate: (id: string, input: UpdateTemplateInput) =>
+      request<TemplateDTO>(`/templates/${id}`, {
+        method: "PATCH",
+        body: input
+      }),
+    deleteTemplate: (id: string) =>
+      request<{ id: string }>(`/templates/${id}`, { method: "DELETE" }),
+    duplicateTemplate: (id: string) =>
+      request<TemplateDTO>(`/templates/${id}/duplicate`, { method: "POST" }),
     // ---- training sessions ----
     createSession: (input: CreateTrainingSessionInput) =>
       request<TrainingSessionDTO>("/training-sessions", {
         method: "POST",
+        body: input
+      }),
+    updateSessionContent: (id: string, input: UpdateSessionContentInput) =>
+      request<TrainingSessionDTO>(`/training-sessions/${id}/content`, {
+        method: "PATCH",
+        body: input
+      }),
+    updateSessionMeta: (id: string, input: UpdateSessionMetaInput) =>
+      request<TrainingSessionDTO>(`/training-sessions/${id}/meta`, {
+        method: "PATCH",
         body: input
       }),
     listSessions: () =>
@@ -133,6 +162,8 @@ export function createApiClient(options: ApiClientOptions) {
     listSessionVideos: (sessionId: string) =>
       request<VideoDTO[]>(`/training-sessions/${sessionId}/videos`),
     getVideo: (id: string) => request<VideoDTO>(`/videos/${id}`),
+    deleteVideo: (id: string) =>
+      request<{ id: string }>(`/videos/${id}`, { method: "DELETE" }),
     // ---- reports / revisions / scoring ----
     getSessionReport: (sessionId: string) =>
       request<SessionReportDTO>(`/training-sessions/${sessionId}/report`),

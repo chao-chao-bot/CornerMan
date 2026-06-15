@@ -15,8 +15,13 @@
     "@cornerman/api-client": "workspace:*",
     "@cornerman/shared-types": "workspace:*",
     "@cornerman/ui": "workspace:*",
+    "@tiptap/extension-highlight": "^3.26.1",
+    "@tiptap/pm": "^3.26.1",
+    "@tiptap/react": "^3.26.1",
+    "@tiptap/starter-kit": "^3.26.1",
     "antd": "^6.4.3",
     "dayjs": "^1.11.21",
+    "framer-motion": "^12.40.0",
     "next": "14.2.5",
     "react": "18.3.1",
     "react-dom": "18.3.1"

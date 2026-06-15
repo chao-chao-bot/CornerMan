@@ -1,72 +1,64 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DatePicker, Select, Spin } from "antd";
-import type { Dayjs } from "dayjs";
 import type {
   SessionListItemDTO,
-  SessionReportStatus,
+  SessionOutcomeResult,
   TrainingType
 } from "@cornerman/shared-types";
-import {
-  Badge,
-  Button,
-  Module,
-  SegControl,
-  StatBox,
-  StatStrip,
-  Table,
-  Tag,
-  type BadgeTone
-} from "@cornerman/ui";
 import { ApiError } from "@cornerman/api-client";
-import { AppFrame } from "../components/app-frame";
+import { HigScaffold } from "../components/hig/scaffold";
+import { CreateFab } from "../components/hig/create-fab";
+import {
+  BoltIcon,
+  DumbbellIcon,
+  ChevronRightIcon,
+  MinusIcon,
+  NoteIcon,
+  SCENE_ICON_FILL
+} from "../components/hig/icons";
+import { clearAuth } from "../lib/auth";
 import { api } from "../lib/api";
-import { TRAINING_TYPE_LABEL, TRAINING_TYPE_OPTIONS } from "../lib/labels";
+import { TRAINING_TYPE_LABEL } from "../lib/labels";
 
 type Filter = "all" | TrainingType;
-type StatusFilter = "all" | SessionReportStatus;
-type ScoreFilter = "all" | "high" | "mid" | "low" | "none";
+type OutcomeFilter = "all" | SessionOutcomeResult;
 
-const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: "all", label: "全部状态" },
-  { value: "pending", label: "分析中" },
-  { value: "draft", label: "待复盘" },
-  { value: "final", label: "已复盘" }
+const TYPE_FILTERS: { value: Filter; label: string }[] = [
+  { value: "all", label: "全部" },
+  { value: "private_lesson", label: "私教" },
+  { value: "self_training", label: "自训" },
+  { value: "sparring", label: "实战" }
 ];
 
-const SCORE_FILTER_OPTIONS: { value: ScoreFilter; label: string }[] = [
-  { value: "all", label: "全部综合分" },
-  { value: "high", label: "8 分以上" },
-  { value: "mid", label: "6 - 8 分" },
-  { value: "low", label: "6 分以下" },
-  { value: "none", label: "未评分" }
+const OUTCOME_FILTERS: { value: OutcomeFilter; label: string }[] = [
+  { value: "all", label: "全部" },
+  { value: "win", label: "胜" },
+  { value: "draw", label: "平" },
+  { value: "loss", label: "负" }
 ];
 
-function matchScore(score: number | undefined, f: ScoreFilter): boolean {
-  if (f === "all") return true;
-  if (f === "none") return score == null;
-  if (score == null) return false;
-  if (f === "high") return score >= 8;
-  if (f === "mid") return score >= 6 && score < 8;
-  return score < 6; // low
-}
-
-const STATUS_META: Record<
-  SessionReportStatus,
-  { label: string; tone: BadgeTone; cta: string }
+const OUTCOME_META: Record<
+  SessionOutcomeResult,
+  { label: string; tone: string } | null
 > = {
-  final: { label: "已复盘", tone: "improved", cta: "查看报告" },
-  draft: { label: "待复盘", tone: "new", cta: "去复盘 →" },
-  pending: { label: "分析中", tone: "blue", cta: "等待分析" }
+  win: { label: "胜", tone: "green" },
+  draw: { label: "平", tone: "orange" },
+  loss: { label: "负", tone: "red" },
+  unscored: null
 };
+
+function TypeIcon({ type }: { type: TrainingType }) {
+  if (type === "sparring") return <BoltIcon />;
+  if (type === "self_training") return <DumbbellIcon />;
+  return <NoteIcon />;
+}
 
 function weekStart(d: Date): number {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
-  const dow = (x.getDay() + 6) % 7; // 周一为 0
+  const dow = (x.getDay() + 6) % 7;
   x.setDate(x.getDate() - dow);
   return x.getTime();
 }
@@ -94,28 +86,14 @@ export default function SessionsPage() {
   const router = useRouter();
   const [sessions, setSessions] = useState<SessionListItemDTO[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [scoreFilter, setScoreFilter] = useState<ScoreFilter>("all");
-  const [dateRange, setDateRange] = useState<
-    [Dayjs | null, Dayjs | null] | null
-  >(null);
+  const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
-
-  const hasActiveFilter =
-    filter !== "all" ||
-    statusFilter !== "all" ||
-    scoreFilter !== "all" ||
-    Boolean(dateRange?.[0] || dateRange?.[1]);
-
-  function clearFilters() {
-    setFilter("all");
-    setStatusFilter("all");
-    setScoreFilter("all");
-    setDateRange(null);
-  }
 
   useEffect(() => {
     api
@@ -129,36 +107,40 @@ export default function SessionsPage() {
 
   const stats = useMemo(() => {
     const total = sessions.length;
-    const totalMin = sessions.reduce((sum, s) => sum + (s.durationMin ?? 0), 0);
-    const latestScore = sessions.find((s) => s.overallScore != null)
-      ?.overallScore;
-    const reportCount = sessions.filter(
-      (s) => s.reportStatus !== "pending"
+    const totalMin = sessions.reduce((s, x) => s + (x.durationMin ?? 0), 0);
+    const thisWeekStart = weekStart(new Date());
+    const thisWeek = sessions.filter(
+      (s) => new Date(s.trainedAt).getTime() >= thisWeekStart
     ).length;
     const streak = consecutiveWeeks(sessions.map((s) => new Date(s.trainedAt)));
-    return { total, totalMin, latestScore, reportCount, streak };
+    return { total, totalMin, thisWeek, streak };
   }, [sessions]);
 
+  const hasActiveFilter =
+    filter !== "all" || outcomeFilter !== "all" || Boolean(from || to);
+
+  function clearFilters() {
+    setFilter("all");
+    setOutcomeFilter("all");
+    setFrom("");
+    setTo("");
+  }
+
   const filtered = useMemo(() => {
-    const from = dateRange?.[0]?.startOf("day").valueOf();
-    const to = dateRange?.[1]?.endOf("day").valueOf();
+    const fromT = from ? new Date(`${from}T00:00:00`).getTime() : undefined;
+    const toT = to ? new Date(`${to}T23:59:59`).getTime() : undefined;
     return sessions.filter((s) => {
       if (filter !== "all" && s.trainingType !== filter) return false;
-      if (statusFilter !== "all" && s.reportStatus !== statusFilter)
+      if (outcomeFilter !== "all" && s.outcome?.result !== outcomeFilter)
         return false;
-      if (!matchScore(s.overallScore, scoreFilter)) return false;
-      if (from != null || to != null) {
-        const t = new Date(s.trainedAt).getTime();
-        if (from != null && t < from) return false;
-        if (to != null && t > to) return false;
-      }
+      const t = new Date(s.trainedAt).getTime();
+      if (fromT != null && t < fromT) return false;
+      if (toT != null && t > toT) return false;
       return true;
     });
-  }, [sessions, filter, statusFilter, scoreFilter, dateRange]);
+  }, [sessions, filter, outcomeFilter, from, to]);
 
-  async function onDelete(e: React.MouseEvent, s: SessionListItemDTO) {
-    e.preventDefault();
-    e.stopPropagation();
+  async function onDelete(s: SessionListItemDTO) {
     if (!window.confirm(`确认删除训练「${s.title}」？此操作不可撤销。`)) return;
     setDeletingId(s.id);
     try {
@@ -171,215 +153,199 @@ export default function SessionsPage() {
     }
   }
 
+  function logout() {
+    clearAuth();
+    router.replace("/login");
+  }
+
+  const leading = (
+    <button type="button" className="hig-navbtn" onClick={logout}>
+      退出
+    </button>
+  );
+
+  const trailing =
+    sessions.length > 0 ? (
+      <button
+        type="button"
+        className={`hig-navbtn${editing ? " strong" : ""}`}
+        onClick={() => setEditing((v) => !v)}
+      >
+        {editing ? "完成" : "编辑"}
+      </button>
+    ) : undefined;
+
   return (
-    <AppFrame>
-      <div className="mb-[18px] flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-[22px] font-bold tracking-tight">训练列表</h1>
-          <p className="mt-0.5 text-[13.5px] text-ink-2">
-            共 {stats.total} 次训练 · 已生成 {stats.reportCount} 份复盘报告
-          </p>
+    <HigScaffold title="训练" leading={leading} trailing={trailing}>
+      <div className="hig-large-title">
+        训练
+        <span className="sub">
+          共 {stats.total} 次 · 本周 {stats.thisWeek}
+        </span>
+      </div>
+
+      {/* 统计 */}
+      <div className="hig-stat-row">
+        <div className="hig-stat">
+          <div className="v blue">{stats.total}</div>
+          <div className="l">累计训练</div>
         </div>
-        <div className="flex items-center gap-3">
-          <SegControl<Filter>
-            value={filter}
-            onChange={setFilter}
-            options={[
-              { value: "all", label: "全部" },
-              ...TRAINING_TYPE_OPTIONS.map((o) => ({
-                value: o.value as Filter,
-                label: o.label
-              }))
-            ]}
-          />
-          <Button
-            variant={showFilters || hasActiveFilter ? "default" : "ghost"}
-            onClick={() => setShowFilters((v) => !v)}
-          >
-            筛选{hasActiveFilter ? " ·已启用" : ""}
-          </Button>
-          <Link href="/sessions/new">
-            <Button variant="primary">+ 新建训练</Button>
-          </Link>
+        <div className="hig-stat">
+          <div className="v">{(stats.totalMin / 60).toFixed(1)}h</div>
+          <div className="l">累计时长</div>
+        </div>
+        <div className="hig-stat">
+          <div className="v green">{stats.thisWeek}</div>
+          <div className="l">本周训练</div>
+        </div>
+        <div className="hig-stat">
+          <div className="v">{stats.streak}</div>
+          <div className="l">连续周</div>
         </div>
       </div>
 
-      <StatStrip className="mb-[18px]">
-        <StatBox value={stats.total} label="累计训练" tone="blue" />
-        <StatBox
-          value={`${(stats.totalMin / 60).toFixed(1)} h`}
-          label="累计时长"
-        />
-        <StatBox
-          value={stats.latestScore != null ? stats.latestScore.toFixed(1) : "—"}
-          label="最近综合分"
-          tone="green"
-        />
-        <StatBox value={stats.streak} label="连续周数" />
-      </StatStrip>
+      {/* 类型筛选 + 展开 */}
+      <div style={{ padding: "10px 16px 0", display: "flex", gap: 8 }}>
+        <div className="hig-seg" style={{ display: "flex", flex: 1 }}>
+          {TYPE_FILTERS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              style={{ flex: 1 }}
+              className={filter === o.value ? "on" : ""}
+              onClick={() => setFilter(o.value)}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className={`hig-navbtn${showFilters || hasActiveFilter ? " strong" : ""}`}
+          style={{ minHeight: 36 }}
+          onClick={() => setShowFilters((v) => !v)}
+        >
+          筛选
+        </button>
+      </div>
 
-      {loading && (
-        <div className="flex justify-center py-16">
-          <Spin />
+      {(showFilters || hasActiveFilter) && (
+        <div className="hig-filter">
+          <div className="hig-seg" style={{ display: "flex" }}>
+            {OUTCOME_FILTERS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                style={{ flex: 1 }}
+                className={outcomeFilter === o.value ? "on" : ""}
+                onClick={() => setOutcomeFilter(o.value)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <div className="dates">
+            <input
+              type="date"
+              value={from}
+              max={to || undefined}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+            <input
+              type="date"
+              value={to}
+              min={from || undefined}
+              onChange={(e) => setTo(e.target.value)}
+            />
+          </div>
+          {hasActiveFilter && (
+            <button type="button" className="hig-clear" onClick={clearFilters}>
+              清除筛选
+            </button>
+          )}
         </div>
       )}
+
       {error && (
-        <div className="mb-3 rounded-sm border border-risk-line bg-risk-soft px-3 py-2 text-[13px] text-risk">
+        <p style={{ color: "var(--red)", fontSize: 13, padding: "10px 32px 0" }}>
           {error}
-        </div>
+        </p>
       )}
 
-      {!loading && (
+      {loading ? (
+        <div className="hig-loading">加载中…</div>
+      ) : filtered.length === 0 ? (
+        <div className="hig-empty">
+          {sessions.length === 0
+            ? "还没有训练记录，点右下角 + 选择模板开始复盘。"
+            : "没有符合筛选条件的训练。"}
+        </div>
+      ) : (
         <>
-          {(showFilters || hasActiveFilter) && (
-            <div className="mb-3 flex flex-wrap items-center gap-2.5">
-              <Select<StatusFilter>
-                value={statusFilter}
-                onChange={setStatusFilter}
-                options={STATUS_FILTER_OPTIONS}
-                style={{ width: 130 }}
-              />
-              <Select<ScoreFilter>
-                value={scoreFilter}
-                onChange={setScoreFilter}
-                options={SCORE_FILTER_OPTIONS}
-                style={{ width: 140 }}
-              />
-              <DatePicker.RangePicker
-                value={dateRange ?? undefined}
-                onChange={(v) =>
-                  setDateRange(v as [Dayjs | null, Dayjs | null] | null)
-                }
-                placeholder={["开始日期", "结束日期"]}
-              />
-              {hasActiveFilter && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="text-[12.5px] text-ink-3 hover:text-brand"
+          <div className="hig-section-header">
+            全部训练（{filtered.length} / {sessions.length}）
+          </div>
+          <div className="hig-list">
+            {filtered.map((s) => {
+              const outcome = s.outcome
+                ? OUTCOME_META[s.outcome.result]
+                : null;
+              return (
+                <div
+                  key={s.id}
+                  className="hig-row"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => !editing && router.push(`/sessions/${s.id}`)}
                 >
-                  清除筛选
-                </button>
-              )}
-            </div>
-          )}
-
-          <Module
-            head="全部训练"
-            meta={`${filtered.length} / ${sessions.length} 条`}
-            noBodyPadding
-          >
-          {filtered.length === 0 ? (
-            <div className="px-4 py-10 text-center text-[13.5px] text-ink-2">
-              {sessions.length === 0 ? (
-                <>
-                  还没有训练记录。
-                  <Link href="/sessions/new" className="text-brand">
-                    创建第一条
-                  </Link>
-                  。
-                </>
-              ) : (
-                <>
-                  没有符合筛选条件的训练。
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="ml-1 text-brand hover:underline"
-                  >
-                    清除筛选
-                  </button>
-                </>
-              )}
-            </div>
-          ) : (
-            <Table>
-              <thead>
-                <tr>
-                  <th>训练</th>
-                  <th>类型</th>
-                  <th>时长</th>
-                  <th>综合分</th>
-                  <th>状态</th>
-                  <th>日期</th>
-                  <th aria-label="操作" />
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((s) => {
-                  const status = STATUS_META[s.reportStatus];
-                  return (
-                    <tr
-                      key={s.id}
-                      onClick={() => router.push(`/sessions/${s.id}`)}
-                      className="cursor-pointer hover:bg-surface-2"
+                  {editing ? (
+                    <button
+                      type="button"
+                      className="del"
+                      disabled={deletingId === s.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void onDelete(s);
+                      }}
+                      aria-label="删除"
                     >
-                      <td>
-                        <strong className="font-semibold">{s.title}</strong>
-                        {s.focus && s.focus !== s.title && (
-                          <div className="mt-0.5 truncate text-[11.5px] text-ink-3">
-                            {s.focus}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <Tag
-                          variant={
-                            s.trainingType === "private_lesson"
-                              ? "type"
-                              : "default"
-                          }
-                        >
-                          {TRAINING_TYPE_LABEL[s.trainingType]}
-                        </Tag>
-                      </td>
-                      <td className="text-ink-2">
-                        {s.durationMin != null ? `${s.durationMin} 分钟` : "—"}
-                      </td>
-                      <td>
-                        {s.overallScore != null ? (
-                          <>
-                            <strong className="font-semibold">
-                              {s.overallScore.toFixed(1)}
-                            </strong>
-                            {s.aiScore != null && (
-                              <span className="ml-1.5 text-[11px] text-ink-3">
-                                AI {s.aiScore.toFixed(1)}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-ink-3">—</span>
-                        )}
-                      </td>
-                      <td>
-                        <Badge tone={status.tone}>{status.label}</Badge>
-                        <div
-                          className={`mt-0.5 text-[11px] ${s.reportStatus === "pending" ? "text-ink-3" : "text-brand"}`}
-                        >
-                          {status.cta}
-                        </div>
-                      </td>
-                      <td className="text-ink-3">{fmtDate(s.trainedAt)}</td>
-                      <td className="text-right">
-                        <button
-                          type="button"
-                          onClick={(e) => onDelete(e, s)}
-                          disabled={deletingId === s.id}
-                          className="text-[12px] text-ink-3 hover:text-risk disabled:opacity-50"
-                        >
-                          {deletingId === s.id ? "删除中…" : "删除"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </Table>
-          )}
-          </Module>
+                      <MinusIcon />
+                    </button>
+                  ) : (
+                    <span
+                      className={`leading-icon ${SCENE_ICON_FILL[s.trainingType] ?? "bg-gray"}`}
+                    >
+                      <TypeIcon type={s.trainingType} />
+                    </span>
+                  )}
+                  <span className="row-main">
+                    <span className="row-title">{s.title}</span>
+                    <span className="row-sub">
+                      {TRAINING_TYPE_LABEL[s.trainingType]}
+                      {s.focus && s.focus !== s.title ? ` · ${s.focus}` : ""}
+                    </span>
+                  </span>
+                  <span className="row-trailing">
+                    {outcome && (
+                      <span className={`hig-pill ${outcome.tone}`}>
+                        {outcome.label}
+                      </span>
+                    )}
+                    <span className="row-date">{fmtDate(s.trainedAt)}</span>
+                    {!editing && (
+                      <span className="chevron">
+                        <ChevronRightIcon />
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </>
       )}
-    </AppFrame>
+
+      <CreateFab />
+    </HigScaffold>
   );
 }

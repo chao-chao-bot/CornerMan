@@ -6,6 +6,7 @@ import { StorageModule } from "./storage/storage.module";
 import { QueueModule } from "./queue/queue.module";
 import { AuthModule } from "./auth/auth.module";
 import { UsersModule } from "./users/users.module";
+import { TemplatesModule } from "./templates/templates.module";
 import { TrainingSessionsModule } from "./training-sessions/training-sessions.module";
 import { VideosModule } from "./videos/videos.module";
 import { ReportsModule } from "./reports/reports.module";
@@ -23,6 +24,7 @@ import { ExportModule } from "./export/export.module";
     QueueModule,
     AuthModule,
     UsersModule,
+    TemplatesModule,
     TrainingSessionsModule,
     VideosModule,
     ReportsModule,
