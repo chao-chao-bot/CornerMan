@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ProblemIcon, ListIcon, TrendIcon } from "./icons";
+import { ProblemIcon, ListIcon, TemplateIcon, TrendIcon } from "./icons";
 
 const TABS = [
   { href: "/sessions", label: "训练", Icon: ListIcon },
+  { href: "/templates", label: "模板", Icon: TemplateIcon },
   { href: "/trends", label: "趋势", Icon: TrendIcon },
   { href: "/problems", label: "问题", Icon: ProblemIcon }
 ];

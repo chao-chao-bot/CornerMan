@@ -37,7 +37,13 @@ export class TrainingSessionsService {
         dto.templateId
       );
       templateSnapshot = template.schema as unknown as TemplateSchema;
-      content = this.emptyContent(templateSnapshot);
+      // 草稿确认保存时带 content：在空骨架上覆盖用户填写内容
+      const skeleton = this.emptyContent(templateSnapshot);
+      content = dto.content
+        ? { ...skeleton, ...(dto.content as unknown as SessionContent) }
+        : skeleton;
+    } else if (dto.content) {
+      content = dto.content as unknown as SessionContent;
     }
 
     const session = await this.prisma.trainingSession.create({
@@ -56,7 +62,11 @@ export class TrainingSessionsService {
           : Prisma.JsonNull,
         content: content
           ? (content as unknown as Prisma.InputJsonValue)
-          : Prisma.JsonNull
+          : Prisma.JsonNull,
+        outcome: dto.outcome
+          ? (dto.outcome as unknown as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+        savedAt: dto.content ? new Date() : undefined
       }
     });
     return this.toDTO(session);
@@ -114,7 +124,8 @@ export class TrainingSessionsService {
 
   async findAllByUser(userId: string): Promise<SessionListItemDTO[]> {
     const sessions = await this.prisma.trainingSession.findMany({
-      where: { userId, deletedAt: null },
+      // savedAt 为空 = 未确认草稿（懒建用于承载视频），列表不展示
+      where: { userId, deletedAt: null, savedAt: { not: null } },
       orderBy: { trainedAt: "desc" },
       include: {
         reports: { where: { deletedAt: null }, select: { status: true } },
@@ -207,10 +218,18 @@ export class TrainingSessionsService {
     if (!session) {
       throw new NotFoundException("训练记录不存在");
     }
-    await this.prisma.trainingSession.update({
-      where: { id },
-      data: { deletedAt: new Date() }
-    });
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.trainingSession.update({
+        where: { id },
+        data: { deletedAt: now }
+      }),
+      // 连带软删该记录的视频（取消草稿时清掉已上传视频）
+      this.prisma.video.updateMany({
+        where: { sessionId: id, deletedAt: null },
+        data: { deletedAt: now }
+      })
+    ]);
     return { id };
   }
 

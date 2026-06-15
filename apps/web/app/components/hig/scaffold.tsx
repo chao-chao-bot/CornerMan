@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { isAuthenticated } from "../../lib/auth";
 import { useHigTheme } from "./use-hig-theme";
+import { HigLoading } from "./loading";
 import { TabBar } from "./tab-bar";
 
 interface ScaffoldProps {
@@ -14,6 +15,8 @@ interface ScaffoldProps {
   tabBar?: boolean;
   /** 关闭登录态守卫（登录页等公共页用不到） */
   guard?: boolean;
+  /** 锁定视口高度：页面不整体滚动，由内部 .hig-scroll 容器滚动 */
+  bodyScroll?: boolean;
   children: ReactNode;
 }
 
@@ -24,6 +27,7 @@ export function HigScaffold({
   trailing,
   tabBar = true,
   guard = true,
+  bodyScroll = false,
   children
 }: ScaffoldProps) {
   const router = useRouter();
@@ -41,17 +45,17 @@ export function HigScaffold({
 
   return (
     <div className="hig" data-theme={dark ? "dark" : "light"}>
-      <div className={`hig-page${tabBar ? " with-tabbar" : ""}`}>
+      <div
+        className={`hig-page${tabBar ? " with-tabbar" : ""}${
+          bodyScroll ? " viewport" : ""
+        }`}
+      >
         <div className="hig-nav">
           {leading && <span className="nav-leading">{leading}</span>}
           <span className="nav-title">{title}</span>
           {trailing && <span className="nav-trailing">{trailing}</span>}
         </div>
-        {ready ? (
-          children
-        ) : (
-          <div className="hig-loading">加载中…</div>
-        )}
+        {ready ? children : <HigLoading />}
       </div>
       {tabBar && <TabBar />}
     </div>

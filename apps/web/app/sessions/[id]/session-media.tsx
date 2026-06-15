@@ -6,6 +6,7 @@ import { ApiError } from "@cornerman/api-client";
 import { api } from "../../lib/api";
 import { uploadVideoFile } from "../../lib/upload-video";
 import { CloseIcon, PlayIcon, PlusIcon } from "../../components/hig/icons";
+import { HigLoading } from "../../components/hig/loading";
 import { FramePlayer } from "./frame-player";
 
 interface PendingUpload {
@@ -47,25 +48,55 @@ function Ring({ progress }: { progress: number }) {
   );
 }
 
-export function SessionMedia({ sessionId }: { sessionId: string }) {
+interface SessionMediaProps {
+  /** 正式页：已有 session id */
+  sessionId?: string;
+  /** 草稿页：首个视频上传时懒解析/创建 session id */
+  resolveSessionId?: () => Promise<string>;
+  /** 懒解析出 id 后通知父组件（草稿页用于保存/取消时识别草稿） */
+  onSessionResolved?: (id: string) => void;
+  /** 只读查看模式：仅展示与播放，不可上传/删除 */
+  readOnly?: boolean;
+}
+
+export function SessionMedia({
+  sessionId,
+  resolveSessionId,
+  onSessionResolved,
+  readOnly
+}: SessionMediaProps) {
+  const [activeId, setActiveId] = useState<string | undefined>(sessionId);
   const [videos, setVideos] = useState<VideoDTO[]>([]);
   const [pending, setPending] = useState<PendingUpload[]>([]);
   const [activeVideo, setActiveVideo] = useState<VideoDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadingVideos, setLoadingVideos] = useState(Boolean(sessionId));
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const reload = useCallback(async () => {
+    if (!activeId) return;
     try {
-      const list = await api.listSessionVideos(sessionId);
+      const list = await api.listSessionVideos(activeId);
       setVideos(list);
     } catch {
       /* 忽略列表刷新错误，避免打断编辑 */
+    } finally {
+      setLoadingVideos(false);
     }
-  }, [sessionId]);
+  }, [activeId]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  async function ensureId(): Promise<string> {
+    if (activeId) return activeId;
+    if (!resolveSessionId) throw new Error("缺少 sessionId");
+    const id = await resolveSessionId();
+    setActiveId(id);
+    onSessionResolved?.(id);
+    return id;
+  }
 
   // 存在处理中视频或上传中任务时轮询
   const needPoll =
@@ -85,7 +116,8 @@ export function SessionMedia({ sessionId }: { sessionId: string }) {
   const startUpload = useCallback(
     async (localId: string, file: File) => {
       try {
-        await uploadVideoFile(sessionId, file, (pct) =>
+        const id = await ensureId();
+        await uploadVideoFile(id, file, (pct) =>
           patch(localId, { progress: pct })
         );
         setPending((prev) => prev.filter((x) => x.id !== localId));
@@ -97,7 +129,8 @@ export function SessionMedia({ sessionId }: { sessionId: string }) {
         });
       }
     },
-    [sessionId, reload]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [reload]
   );
 
   function addFiles(files: File[]) {
@@ -137,14 +170,16 @@ export function SessionMedia({ sessionId }: { sessionId: string }) {
           const tag = STATUS_TAG[v.status];
           return (
             <div className="hig-mcell" key={v.id}>
-              <button
-                type="button"
-                className="corner-del"
-                aria-label="删除"
-                onClick={() => removeVideo(v)}
-              >
-                <CloseIcon />
-              </button>
+              {!readOnly && (
+                <button
+                  type="button"
+                  className="corner-del"
+                  aria-label="删除"
+                  onClick={() => removeVideo(v)}
+                >
+                  <CloseIcon />
+                </button>
+              )}
               {ready ? (
                 <button
                   type="button"
@@ -154,6 +189,15 @@ export function SessionMedia({ sessionId }: { sessionId: string }) {
                   {v.posterUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={v.posterUrl} alt={v.originalFileName ?? "视频"} />
+                  ) : v.playbackUrl ? (
+                    <video
+                      className="thumb"
+                      src={`${v.playbackUrl}#t=0.1`}
+                      preload="metadata"
+                      muted
+                      playsInline
+                      tabIndex={-1}
+                    />
                   ) : (
                     <span className="ph">视频</span>
                   )}
@@ -207,35 +251,49 @@ export function SessionMedia({ sessionId }: { sessionId: string }) {
         ))}
 
         {/* 添加 */}
-        <button
-          type="button"
-          className="hig-mcell add"
-          onClick={() => inputRef.current?.click()}
-        >
-          <PlusIcon />
-          添加视频
-        </button>
+        {!readOnly && (
+          <button
+            type="button"
+            className="hig-mcell add"
+            onClick={() => inputRef.current?.click()}
+          >
+            <PlusIcon />
+            添加视频
+          </button>
+        )}
       </div>
 
-      <input
-        ref={inputRef}
-        type="file"
-        accept="video/*"
-        multiple
-        hidden
-        onChange={(e) => {
-          const files = Array.from(e.target.files ?? []);
-          e.target.value = "";
-          if (files.length) addFiles(files);
-        }}
-      />
+      {readOnly && loadingVideos && <HigLoading text="加载视频…" />}
+
+      {readOnly && !loadingVideos && videos.length === 0 && (
+        <div className="hig-empty" style={{ padding: "18px 0", fontSize: 14 }}>
+          本次训练没有视频素材。
+        </div>
+      )}
+
+      {!readOnly && (
+        <input
+          ref={inputRef}
+          type="file"
+          accept="video/*"
+          multiple
+          hidden
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            e.target.value = "";
+            if (files.length) addFiles(files);
+          }}
+        />
+      )}
 
       {error && (
         <p style={{ color: "var(--red)", fontSize: 13, marginTop: 8 }}>{error}</p>
       )}
-      <p style={{ marginTop: 8, fontSize: 12, color: "var(--label-3)", lineHeight: 1.4 }}>
-        视频在后台异步上传与转码，期间可继续填写复盘；就绪后点封面进入逐帧复盘。
-      </p>
+      {!readOnly && (
+        <p style={{ marginTop: 8, fontSize: 12, color: "var(--label-3)", lineHeight: 1.4 }}>
+          视频在后台异步上传与转码，期间可继续填写复盘；就绪后点封面进入逐帧复盘。
+        </p>
+      )}
 
       {activeVideo?.playbackUrl && (
         <FramePlayer

@@ -3,6 +3,31 @@
 记录每次大型修改。新记录追加在最上方（倒序）。
 每条字段：日期 / 范围 / 改动摘要 / 影响文件 / 备注。
 
+## 2026-06-15 · 新建复盘单页（视频+内容）确认/取消 + 日期/类型改用 antd
+- 范围：api / web
+- 背景：上一版把视频上传放到「保存后的正式页」，体验割裂。改为单页草稿：视频与内容一起填写，确认才落库，取消则删视频+删草稿。另按需求把日期/类型选择换成 antd 组件（HIG 主题化）。
+- 决策：方案 A「懒建草稿 session」——视频必须挂在某个 session（`Video.sessionId` 必填 FK），故首个视频上传时静默建一条 `savedAt` 为空的草稿 session 承载；确认转正、取消删除；列表过滤 `savedAt` 为空的草稿，避免残留。无需数据库迁移。
+- 改动摘要：
+  - **后端**（[training-sessions.service.ts](apps/api/src/training-sessions/training-sessions.service.ts)）：`remove` 改事务，软删 session 时连带 `video.updateMany` 软删其视频；`findAllByUser` 增加 `savedAt: { not: null }` 过滤未确认草稿。
+  - **SessionMedia**（[session-media.tsx](apps/web/app/sessions/[id]/session-media.tsx)）：props 改为 `sessionId?` / `resolveSessionId?` / `onSessionResolved?`；内部 `activeId` 为空时跳过列表/轮询；上传前 `ensureId()` 懒解析 session id。正式页用法 `sessionId=...` 不变。
+  - **草稿页**（[draft-session-editor.tsx](apps/web/app/sessions/new/draft-session-editor.tsx)）：内嵌真实 `SessionMedia`，`ensureDraftSession()` 懒建（`draftPromiseRef` 合并并发）；`save()` 在有草稿时走 `updateSessionMeta + updateSessionContent` 转正、否则原子 `createSession`；`cancel()`/返回时若有草稿 `deleteSession`（连带删视频）；仍需 `hasAnyContent` 至少一个字段才能保存。
+  - **antd 组件 HIG 化**（新增 [hig-antd.tsx](apps/web/app/components/hig/hig-antd.tsx)）：嵌套 `ConfigProvider`，HIG token（主色随浅深色 `#0A84FF`/`#007AFF`、圆角 10、控件高 44、字号 16）+ `useHigTheme()` 切 `dark/defaultAlgorithm`，不动旧 PC 全局 `AntdProvider`。日期：草稿/编辑/新建 Sheet 的 `<input type=date>` → antd `DatePicker`（dayjs、禁未来、borderless 融入 `.hig-field`）；类型：模板 Builder 的 `<select>` → antd `Select`。
+- 影响文件：上述文件 + `docs/worklog.md`
+- 验证：`@cornerman/api`、`@cornerman/web` typecheck 通过、ReadLints 无错；curl 实测：草稿（`savedAt` 空）不进列表、可挂视频、`DELETE` 后 session 失效（连带软删视频）、`updateContent` 后 `savedAt` 有值并进列表；`/sessions/new`、`/templates` 编译并 200、无运行时报错（仅既有 antd cssVar 提示）。
+- 备注：antd DatePicker 为面板式（非 iOS 系统滚轮），靠 44pt 高度 + HIG 配色贴合；浏览器端到端点击走查因多标签会话登录态不稳定未在自动化完成，建议手动确认草稿「传视频→取消（视频被删、列表无残留）/ 传视频+填字段→保存」两条路径。极端情况（传视频后强关浏览器未取消）会残留一条隐藏草稿，后续可加定时清理。
+
+## 2026-06-15 · 新建复盘草稿确认流 + 字段校验 + 视频一帧缩略图
+- 范围：shared-types / api / web
+- 背景：原「新建复盘」点模板即落库（甚至空记录残留）。改为「选模板 → 进入草稿编辑（不落库）→ 至少填一个字段 → 点保存才创建」，并让就绪视频展示一帧缩略图。
+- 改动摘要：
+  - **原子创建**（[create-training-session.dto.ts](apps/api/src/training-sessions/dto/create-training-session.dto.ts) / [training-sessions.service.ts](apps/api/src/training-sessions/training-sessions.service.ts) / [shared-types/src/index.ts](packages/shared-types/src/index.ts)）：`CreateTrainingSessionInput`/DTO 新增可选 `content`、`outcome`；`create` 在模板空骨架上覆盖用户填写内容、写入 `outcome`，带 `content` 时同时置 `savedAt`。避免「先建空记录再补」。
+  - **Sheet 改为发起草稿**（[create-session-sheet.tsx](apps/web/app/components/hig/create-session-sheet.tsx) / [create-fab.tsx](apps/web/app/components/hig/create-fab.tsx)）：选中模板 + 日期后回调 `onStartDraft`，FAB 据此 `router.push('/sessions/new?templateId=…&trainedAt=…')`；不再在 Sheet 内创建。
+  - **草稿页与编辑器**（新增 [sessions/new/page.tsx](apps/web/app/sessions/new/page.tsx) + [sessions/new/draft-session-editor.tsx](apps/web/app/sessions/new/draft-session-editor.tsx)）：`getTemplate` 载入 schema；本地维护 content/时长/成败，无自动保存；复用 `Block`；草稿态视频区为「保存后可添加」提示；`hasAnyContent` 校验至少一个字段非空，否则禁用「保存复盘」并提示；保存调 `api.createSession`（原子带 content）后 `router.replace('/sessions/[id]')`；返回/放弃不落库。
+  - **视频缩略图**（[session-media.tsx](apps/web/app/sessions/[id]/session-media.tsx)）：就绪卡片无 `posterUrl` 时改用 `<video src=playbackUrl#t=0.1 preload=metadata muted playsInline>` 定格一帧作为缩略图（`.hig-mcell video` 已 `object-fit: cover`），叠加播放角标，点击进逐帧播放器。
+- 影响文件：上述文件 + `docs/worklog.md`
+- 验证：`@cornerman/api`、`@cornerman/web` typecheck 通过、`@cornerman/shared-types` build 通过、ReadLints 无错；curl 验证 `POST /training-sessions` 原子带 `content` 创建成功（`durationMin`/`savedAt`/`content.plainText` 均落库）。
+- 备注：缩略图采用轻量「video 定格帧」方案（不改后端、不额外上传）；持久化 JPEG 封面（本地抓帧 + poster 预签名）留待后续。浏览器端到端走查因当前多标签会话登录态不稳定未在自动化中完成，建议手动确认草稿流。
+
 ## 2026-06-12 · R3 视频素材异步附件（复用 Video 管线 · HIG 编辑器内嵌）
 - 范围：api / api-client / web
 - 决策：采用最小改造方案——复用现有 `Video` 表与「init→PUT→complete→worker」上传管线，把视频做成 HIG 复盘编辑器内的「异步附件卡片」；图片附件、MediaAttachment 新表、worker 与 AI 分析拆分留待后续迭代。

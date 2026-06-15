@@ -13,7 +13,6 @@ import type {
 } from "@cornerman/shared-types";
 import { PrismaService } from "../prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
-import { VideoQueueService } from "../queue/video-queue.service";
 import { InitVideoUploadDto } from "./dto/init-video-upload.dto";
 
 const ALLOWED_CONTENT_TYPES = new Set([
@@ -28,8 +27,7 @@ const MAX_SIZE_BYTES = 2 * 1024 * 1024 * 1024; // 2GB
 export class VideosService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly storage: StorageService,
-    private readonly queue: VideoQueueService
+    private readonly storage: StorageService
   ) {}
 
   async initUpload(
@@ -80,11 +78,11 @@ export class VideosService {
     if (video.status !== "uploading") {
       throw new BadRequestException("视频状态不允许该操作");
     }
+    // 仅保留上传：上传完成即就绪，直接播放原始文件，不做转码/分析（后续再接）。
     const updated = await this.prisma.video.update({
       where: { id: video.id },
-      data: { status: "uploaded" }
+      data: { status: "ready" }
     });
-    await this.queue.enqueueProcess(video.id);
     return this.toDTO(updated, []);
   }
 
@@ -157,9 +155,11 @@ export class VideosService {
       isReady && video.posterObjectKey
         ? await this.storage.presignGet(video.posterObjectKey)
         : undefined;
+    // 优先转码产物 720p；无则回退播放原始上传文件。
+    const playbackKey = video.playback720Key ?? video.objectKey;
     const playbackUrl =
-      isReady && video.playback720Key
-        ? await this.storage.presignGet(video.playback720Key)
+      isReady && playbackKey
+        ? await this.storage.presignGet(playbackKey)
         : undefined;
 
     return {

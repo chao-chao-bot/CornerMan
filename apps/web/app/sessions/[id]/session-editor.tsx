@@ -12,6 +12,7 @@ import type {
 import { ApiError } from "@cornerman/api-client";
 import { api } from "../../lib/api";
 import { Block } from "../../components/hig/blocks";
+import { HigDateField } from "../../components/hig/hig-pickers";
 import { useHigTheme } from "../../components/hig/use-hig-theme";
 import { SessionMedia } from "./session-media";
 
@@ -43,9 +44,12 @@ function SavePill({ state }: { state: SaveState }) {
 }
 
 export function SessionEditor({
-  session: initial
+  session: initial,
+  onExit
 }: {
   session: TrainingSessionDTO;
+  /** 提供则返回时调用它（回到详情预览）；否则回训练列表 */
+  onExit?: () => void;
 }) {
   const router = useRouter();
   const dark = useHigTheme();
@@ -94,11 +98,15 @@ export function SessionEditor({
       clearTimeout(timer.current);
       await flush(latest.current);
     }
-    router.push("/sessions");
+    if (onExit) onExit();
+    else router.push("/sessions");
   }
 
-  /* ---- meta：日期 / 成败 ---- */
+  /* ---- meta：日期 / 时长 / 成败 ---- */
   const [trainedAt, setTrainedAt] = useState(initial.trainedAt);
+  const [durationMin, setDurationMin] = useState<string>(
+    initial.durationMin != null ? String(initial.durationMin) : ""
+  );
   const [outcome, setOutcome] = useState<SessionOutcome>(
     initial.outcome ?? { result: "unscored" }
   );
@@ -121,6 +129,17 @@ export function SessionEditor({
     void saveMeta({ trainedAt: iso });
   }
 
+  function onDurationBlur() {
+    const n = Number(durationMin);
+    if (durationMin.trim() === "") return;
+    if (!Number.isFinite(n) || n <= 0 || n > 1440) {
+      setMetaErr("训练时长请填 1–1440 的分钟数");
+      return;
+    }
+    setMetaErr(null);
+    void saveMeta({ durationMin: Math.round(n) });
+  }
+
   function onOutcomeChange(next: SessionOutcome) {
     setOutcome(next);
     void saveMeta({ outcome: next });
@@ -134,7 +153,7 @@ export function SessionEditor({
         <div className="hig-nav">
           <span className="nav-leading">
             <button type="button" className="hig-navbtn" onClick={goBack}>
-              ← 训练
+              {onExit ? "← 详情" : "← 训练"}
             </button>
           </span>
           <span className="nav-title">复盘</span>
@@ -148,19 +167,31 @@ export function SessionEditor({
           <span className="sub">
             {initial.templateSnapshot ? "模板复盘" : "训练复盘"} ·{" "}
             {dateInputValue(trainedAt)}
+            {durationMin ? ` · ${durationMin} 分钟` : ""}
           </span>
         </div>
 
-        {/* 训练日期 */}
-        <div className="hig-section-header">训练日期</div>
+        {/* 训练信息 */}
+        <div className="hig-section-header">训练信息</div>
         <div className="hig-form">
           <label className="hig-field">
             <span className="fl">日期</span>
+            <HigDateField
+              value={new Date(trainedAt)}
+              max={new Date()}
+              onChange={(d) => onDateChange(dateInputValue(d.toISOString()))}
+            />
+          </label>
+          <label className="hig-field">
+            <span className="fl">训练时长</span>
             <input
-              type="date"
-              value={dateInputValue(trainedAt)}
-              max={dateInputValue(new Date().toISOString())}
-              onChange={(e) => onDateChange(e.target.value)}
+              inputMode="numeric"
+              value={durationMin}
+              placeholder="分钟，例如 60"
+              onChange={(e) =>
+                setDurationMin(e.target.value.replace(/[^0-9]/g, ""))
+              }
+              onBlur={onDurationBlur}
             />
           </label>
         </div>

@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { TemplateDTO, TrainingType } from "@cornerman/shared-types";
+import type { TemplateDTO } from "@cornerman/shared-types";
 import { ApiError } from "@cornerman/api-client";
 import { api } from "../../lib/api";
 import { BottomSheet } from "./bottom-sheet";
+import { HigLoading } from "./loading";
+import { HigDateField } from "./hig-pickers";
 import {
   BoltIcon,
-  ChevronRightIcon,
+  CheckIcon,
   DumbbellIcon,
   NoteIcon,
   SCENE_ICON_FILL
@@ -16,15 +18,9 @@ import {
 interface CreateSessionSheetProps {
   open: boolean;
   onClose: () => void;
-  onCreated: (sessionId: string) => void;
+  /** 选中模板 + 日期后发起草稿（此时不落库，由草稿页确认保存后才创建） */
+  onStartDraft: (params: { templateId: string; trainedAt: string }) => void;
 }
-
-const SCENE_TRAINING_TYPE: Record<string, TrainingType> = {
-  private_lesson: "private_lesson",
-  sparring: "sparring",
-  self_training: "self_training",
-  custom: "self_training"
-};
 
 function SceneIcon({ scene }: { scene: string }) {
   if (scene === "sparring") return <BoltIcon />;
@@ -49,12 +45,12 @@ function dateInputValue(iso: string): string {
 export function CreateSessionSheet({
   open,
   onClose,
-  onCreated
+  onStartDraft
 }: CreateSessionSheetProps) {
   const [templates, setTemplates] = useState<TemplateDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [creatingId, setCreatingId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   // 日期快选：0=今天 1=昨天 -1=自定义
   const [dateMode, setDateMode] = useState<0 | 1 | -1>(0);
   const [customDate, setCustomDate] = useState(dateInputValue(isoFromOffset(0)));
@@ -63,6 +59,7 @@ export function CreateSessionSheet({
     if (!open) return;
     setLoading(true);
     setError(null);
+    setSelectedId(null);
     api
       .listTemplates()
       .then(setTemplates)
@@ -85,31 +82,23 @@ export function CreateSessionSheet({
     return { system, personal };
   }, [templates]);
 
-  async function pick(tpl: TemplateDTO) {
-    setCreatingId(tpl.id);
-    setError(null);
-    try {
-      const dateLabel = dateInputValue(trainedAt).slice(5).replace("-", "/");
-      const session = await api.createSession({
-        title: `${tpl.name} · ${dateLabel}`,
-        trainingType: SCENE_TRAINING_TYPE[tpl.scene] ?? "self_training",
-        trainedAt,
-        templateId: tpl.id
-      });
-      onCreated(session.id);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "创建失败");
-      setCreatingId(null);
-    }
+  const selectedTpl = useMemo(
+    () => templates.find((t) => t.id === selectedId) ?? null,
+    [templates, selectedId]
+  );
+
+  function startDraft() {
+    if (!selectedTpl) return;
+    onStartDraft({ templateId: selectedTpl.id, trainedAt });
   }
 
   function TemplateRow({ tpl }: { tpl: TemplateDTO }) {
+    const on = selectedId === tpl.id;
     return (
       <button
         type="button"
         className="hig-row"
-        disabled={creatingId != null}
-        onClick={() => pick(tpl)}
+        onClick={() => setSelectedId(tpl.id)}
       >
         <span className={`leading-icon ${SCENE_ICON_FILL[tpl.scene] ?? "bg-gray"}`}>
           <SceneIcon scene={tpl.scene} />
@@ -122,11 +111,9 @@ export function CreateSessionSheet({
             </span>
           )}
         </span>
-        {creatingId === tpl.id ? (
-          <span className="row-value">创建中…</span>
-        ) : (
-          <span className="chevron">
-            <ChevronRightIcon />
+        {on && (
+          <span className="hig-check-trailing" aria-label="已选择">
+            <CheckIcon />
           </span>
         )}
       </button>
@@ -168,18 +155,17 @@ export function CreateSessionSheet({
           <div className="hig-form" style={{ margin: "10px 0 0" }}>
             <label className="hig-field">
               <span className="fl">日期</span>
-              <input
-                type="date"
-                value={customDate}
-                max={dateInputValue(isoFromOffset(0))}
-                onChange={(e) => setCustomDate(e.target.value)}
+              <HigDateField
+                value={new Date(`${customDate}T00:00:00`)}
+                max={new Date(isoFromOffset(0))}
+                onChange={(d) => setCustomDate(dateInputValue(d.toISOString()))}
               />
             </label>
           </div>
         )}
       </div>
 
-      {loading && <div className="hig-loading">加载模板…</div>}
+      {loading && <HigLoading text="加载模板…" />}
       {error && (
         <p
           style={{
@@ -214,9 +200,17 @@ export function CreateSessionSheet({
               </div>
             </>
           )}
-          <p className="hig-section-footer" style={{ paddingBottom: 12 }}>
-            选择模板后立即创建复盘，进入后即可逐区块填写，内容自动保存。
+          <p className="hig-section-footer" style={{ paddingBottom: 4 }}>
+            选择一个模板，点「新建复盘」进入填写；至少填写一个字段并保存后才会创建记录。
           </p>
+          <button
+            type="button"
+            className="hig-btn-filled"
+            disabled={!selectedId}
+            onClick={startDraft}
+          >
+            新建复盘
+          </button>
         </>
       )}
     </BottomSheet>

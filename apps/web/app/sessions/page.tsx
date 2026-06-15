@@ -8,35 +8,36 @@ import type {
   TrainingType
 } from "@cornerman/shared-types";
 import { ApiError } from "@cornerman/api-client";
+import { Dialog, SwipeAction } from "antd-mobile";
 import { HigScaffold } from "../components/hig/scaffold";
+import { HigLoading } from "../components/hig/loading";
 import { CreateFab } from "../components/hig/create-fab";
+import { HigDateField } from "../components/hig/hig-pickers";
 import {
   BoltIcon,
   DumbbellIcon,
   ChevronRightIcon,
-  MinusIcon,
   NoteIcon,
   SCENE_ICON_FILL
 } from "../components/hig/icons";
 import { clearAuth } from "../lib/auth";
 import { api } from "../lib/api";
+import { useAdmDarkSync } from "../components/hig/use-hig-theme";
 import { TRAINING_TYPE_LABEL } from "../lib/labels";
 
 type Filter = "all" | TrainingType;
-type OutcomeFilter = "all" | SessionOutcomeResult;
+
+function fmtDateInput(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
 
 const TYPE_FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "全部" },
   { value: "private_lesson", label: "私教" },
   { value: "self_training", label: "自训" },
   { value: "sparring", label: "实战" }
-];
-
-const OUTCOME_FILTERS: { value: OutcomeFilter; label: string }[] = [
-  { value: "all", label: "全部" },
-  { value: "win", label: "胜" },
-  { value: "draw", label: "平" },
-  { value: "loss", label: "负" }
 ];
 
 const OUTCOME_META: Record<
@@ -84,16 +85,14 @@ function fmtDate(iso: string): string {
 
 export default function SessionsPage() {
   const router = useRouter();
+  useAdmDarkSync();
   const [sessions, setSessions] = useState<SessionListItemDTO[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
-  const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -116,12 +115,10 @@ export default function SessionsPage() {
     return { total, totalMin, thisWeek, streak };
   }, [sessions]);
 
-  const hasActiveFilter =
-    filter !== "all" || outcomeFilter !== "all" || Boolean(from || to);
+  const hasActiveFilter = filter !== "all" || Boolean(from || to);
 
   function clearFilters() {
     setFilter("all");
-    setOutcomeFilter("all");
     setFrom("");
     setTo("");
   }
@@ -131,25 +128,26 @@ export default function SessionsPage() {
     const toT = to ? new Date(`${to}T23:59:59`).getTime() : undefined;
     return sessions.filter((s) => {
       if (filter !== "all" && s.trainingType !== filter) return false;
-      if (outcomeFilter !== "all" && s.outcome?.result !== outcomeFilter)
-        return false;
       const t = new Date(s.trainedAt).getTime();
       if (fromT != null && t < fromT) return false;
       if (toT != null && t > toT) return false;
       return true;
     });
-  }, [sessions, filter, outcomeFilter, from, to]);
+  }, [sessions, filter, from, to]);
 
-  async function onDelete(s: SessionListItemDTO) {
-    if (!window.confirm(`确认删除训练「${s.title}」？此操作不可撤销。`)) return;
-    setDeletingId(s.id);
+  async function confirmDelete(s: SessionListItemDTO) {
+    const ok = await Dialog.confirm({
+      title: "删除训练",
+      content: `确认删除「${s.title}」？此操作不可撤销。`,
+      confirmText: "删除",
+      cancelText: "取消"
+    });
+    if (!ok) return;
     try {
       await api.deleteSession(s.id);
       setSessions((prev) => prev.filter((x) => x.id !== s.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "删除失败");
-    } finally {
-      setDeletingId(null);
     }
   }
 
@@ -164,19 +162,8 @@ export default function SessionsPage() {
     </button>
   );
 
-  const trailing =
-    sessions.length > 0 ? (
-      <button
-        type="button"
-        className={`hig-navbtn${editing ? " strong" : ""}`}
-        onClick={() => setEditing((v) => !v)}
-      >
-        {editing ? "完成" : "编辑"}
-      </button>
-    ) : undefined;
-
   return (
-    <HigScaffold title="训练" leading={leading} trailing={trailing}>
+    <HigScaffold title="训练" leading={leading} bodyScroll>
       <div className="hig-large-title">
         训练
         <span className="sub">
@@ -231,31 +218,12 @@ export default function SessionsPage() {
 
       {(showFilters || hasActiveFilter) && (
         <div className="hig-filter">
-          <div className="hig-seg" style={{ display: "flex" }}>
-            {OUTCOME_FILTERS.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                style={{ flex: 1 }}
-                className={outcomeFilter === o.value ? "on" : ""}
-                onClick={() => setOutcomeFilter(o.value)}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
           <div className="dates">
-            <input
-              type="date"
-              value={from}
-              max={to || undefined}
-              onChange={(e) => setFrom(e.target.value)}
-            />
-            <input
-              type="date"
-              value={to}
-              min={from || undefined}
-              onChange={(e) => setTo(e.target.value)}
+            <HigDateField
+              value={from ? new Date(`${from}T00:00:00`) : null}
+              max={to ? new Date(`${to}T00:00:00`) : new Date()}
+              placeholder="起始日期"
+              onChange={(d) => setFrom(fmtDateInput(d))}
             />
           </div>
           {hasActiveFilter && (
@@ -266,6 +234,7 @@ export default function SessionsPage() {
         </div>
       )}
 
+      <div className="hig-scroll">
       {error && (
         <p style={{ color: "var(--red)", fontSize: 13, padding: "10px 32px 0" }}>
           {error}
@@ -273,7 +242,7 @@ export default function SessionsPage() {
       )}
 
       {loading ? (
-        <div className="hig-loading">加载中…</div>
+        <HigLoading />
       ) : filtered.length === 0 ? (
         <div className="hig-empty">
           {sessions.length === 0
@@ -291,59 +260,54 @@ export default function SessionsPage() {
                 ? OUTCOME_META[s.outcome.result]
                 : null;
               return (
-                <div
+                <SwipeAction
                   key={s.id}
-                  className="hig-row"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => !editing && router.push(`/sessions/${s.id}`)}
+                  rightActions={[
+                    {
+                      key: "del",
+                      text: "删除",
+                      color: "danger",
+                      onClick: () => void confirmDelete(s)
+                    }
+                  ]}
                 >
-                  {editing ? (
-                    <button
-                      type="button"
-                      className="del"
-                      disabled={deletingId === s.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void onDelete(s);
-                      }}
-                      aria-label="删除"
-                    >
-                      <MinusIcon />
-                    </button>
-                  ) : (
+                  <div
+                    className="hig-row"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => router.push(`/sessions/${s.id}`)}
+                  >
                     <span
                       className={`leading-icon ${SCENE_ICON_FILL[s.trainingType] ?? "bg-gray"}`}
                     >
                       <TypeIcon type={s.trainingType} />
                     </span>
-                  )}
-                  <span className="row-main">
-                    <span className="row-title">{s.title}</span>
-                    <span className="row-sub">
-                      {TRAINING_TYPE_LABEL[s.trainingType]}
-                      {s.focus && s.focus !== s.title ? ` · ${s.focus}` : ""}
-                    </span>
-                  </span>
-                  <span className="row-trailing">
-                    {outcome && (
-                      <span className={`hig-pill ${outcome.tone}`}>
-                        {outcome.label}
+                    <span className="row-main">
+                      <span className="row-title">{s.title}</span>
+                      <span className="row-sub">
+                        {TRAINING_TYPE_LABEL[s.trainingType]}
+                        {s.focus && s.focus !== s.title ? ` · ${s.focus}` : ""}
                       </span>
-                    )}
-                    <span className="row-date">{fmtDate(s.trainedAt)}</span>
-                    {!editing && (
+                    </span>
+                    <span className="row-trailing">
+                      {outcome && (
+                        <span className={`hig-pill ${outcome.tone}`}>
+                          {outcome.label}
+                        </span>
+                      )}
+                      <span className="row-date">{fmtDate(s.trainedAt)}</span>
                       <span className="chevron">
                         <ChevronRightIcon />
                       </span>
-                    )}
-                  </span>
-                </div>
+                    </span>
+                  </div>
+                </SwipeAction>
               );
             })}
           </div>
         </>
       )}
+      </div>
 
       <CreateFab />
     </HigScaffold>

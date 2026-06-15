@@ -11,19 +11,23 @@ export interface BlockProps {
   block: TemplateBlock;
   value: SessionContentBlock | undefined;
   onChange: (next: SessionContentBlock) => void;
+  /** 只读查看模式：不可编辑，仅展示已填内容 */
+  readOnly?: boolean;
 }
 
 /* ---------------- 富文本（TipTap） ---------------- */
 
-function RichTextBlock({ block, value, onChange }: BlockProps) {
+function RichTextBlock({ block, value, onChange, readOnly }: BlockProps) {
   const editor = useEditor({
     immediatelyRender: false,
+    editable: !readOnly,
     extensions: [
       StarterKit.configure({ heading: { levels: [2] } }),
       Highlight
     ],
     content: (value?.doc as object | undefined) ?? "",
     onUpdate: ({ editor: ed }) => {
+      if (readOnly) return;
       onChange({
         type: "rich_text",
         doc: ed.getJSON(),
@@ -36,6 +40,11 @@ function RichTextBlock({ block, value, onChange }: BlockProps) {
   });
 
   const isEmpty = editor?.isEmpty ?? true;
+
+  if (readOnly) {
+    if (isEmpty) return <p className="blk-view-empty">未填写</p>;
+    return <EditorContent editor={editor} />;
+  }
 
   return (
     <div>
@@ -96,11 +105,19 @@ function RichTextBlock({ block, value, onChange }: BlockProps) {
 
 /* ---------------- 短文本 ---------------- */
 
-function ShortTextBlock({ block, value, onChange }: BlockProps) {
+function ShortTextBlock({ block, value, onChange, readOnly }: BlockProps) {
+  const text = (value?.value as string) ?? "";
+  if (readOnly) {
+    return text.trim() ? (
+      <p className="blk-view-text">{text}</p>
+    ) : (
+      <p className="blk-view-empty">未填写</p>
+    );
+  }
   return (
     <input
       className="short"
-      value={(value?.value as string) ?? ""}
+      value={text}
       placeholder={block.placeholder ?? "输入…"}
       onChange={(e) =>
         onChange({ type: "short_text", value: e.target.value })
@@ -111,8 +128,17 @@ function ShortTextBlock({ block, value, onChange }: BlockProps) {
 
 /* ---------------- 评分（5 星） ---------------- */
 
-function RatingBlock({ value, onChange }: BlockProps) {
+function RatingBlock({ value, onChange, readOnly }: BlockProps) {
   const score = Number(value?.value ?? 0);
+  if (readOnly) {
+    return (
+      <div className="hig-stars" aria-label={`评分 ${score} / 5`}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <StarIcon key={n} className={`s${n <= score ? " on" : ""}`} />
+        ))}
+      </div>
+    );
+  }
   return (
     <div className="hig-stars">
       {[1, 2, 3, 4, 5].map((n) => (
@@ -137,8 +163,25 @@ interface ChecklistItem {
   done: boolean;
 }
 
-function ChecklistBlock({ block, value, onChange }: BlockProps) {
+function ChecklistBlock({ value, onChange, readOnly }: BlockProps) {
   const items = (value?.value as ChecklistItem[] | undefined) ?? [];
+
+  if (readOnly) {
+    const filled = items.filter((it) => it.text.trim());
+    if (filled.length === 0) return <p className="blk-view-empty">未填写</p>;
+    return (
+      <div>
+        {filled.map((it, idx) => (
+          <div className="hig-check view" key={idx}>
+            <span className={`box${it.done ? " on" : ""}`}>
+              {it.done && <CheckIcon />}
+            </span>
+            <span className="ck-text">{it.text}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   function update(next: ChecklistItem[]) {
     onChange({ type: "checklist", value: next });
@@ -212,19 +255,19 @@ export function Block(props: BlockProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const { block } = props;
+  const { block, readOnly } = props;
   return (
     <div className="hig-block">
       <div className="blk-head">
         <span className="blk-label">{block.title}</span>
-        {block.required && <span className="blk-req">必填</span>}
+        {block.required && !readOnly && <span className="blk-req">必填</span>}
       </div>
       {block.type === "rich_text" &&
         (mounted ? (
           <RichTextBlock {...props} />
         ) : (
           <div className="ce" style={{ color: "var(--label-3)" }}>
-            {block.placeholder ?? "在此记录…"}
+            {readOnly ? "" : block.placeholder ?? "在此记录…"}
           </div>
         ))}
       {block.type === "short_text" && <ShortTextBlock {...props} />}

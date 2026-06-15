@@ -14,3 +14,17 @@ export function useHigTheme(): boolean {
   }, []);
   return dark;
 }
+
+/**
+ * 把系统浅/深色同步到 <html data-prefers-color-scheme>，
+ * 让 antd-mobile 弹层（Portal 到 body，不在 .hig 子树内）跟随深色。
+ * 系统色全局一致，重复写入无副作用。
+ */
+export function useAdmDarkSync(): void {
+  const dark = useHigTheme();
+  useEffect(() => {
+    const root = document.documentElement;
+    if (dark) root.setAttribute("data-prefers-color-scheme", "dark");
+    else root.removeAttribute("data-prefers-color-scheme");
+  }, [dark]);
+}

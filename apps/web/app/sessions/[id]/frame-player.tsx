@@ -144,27 +144,34 @@ export function FramePlayer({
 
   const scrubbing = useRef(false);
 
+  // 长按连续步进的计时器：用 ref 持久化，避免渲染间闭包失效导致 stop 清不掉，
+  // 进而留下一个永久 setInterval 不停 pause()，让播放无法继续/暂停失灵。
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const repeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stopHold = () => {
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    if (repeatTimerRef.current) clearInterval(repeatTimerRef.current);
+    holdTimerRef.current = null;
+    repeatTimerRef.current = null;
+  };
+
+  // 卸载时清掉残留计时器
+  useEffect(() => stopHold, []);
+
   // 单帧按钮：点按步进一帧，长按后连续步进
   function holdProps(dir: number) {
-    let hold: ReturnType<typeof setTimeout> | null = null;
-    let repeat: ReturnType<typeof setInterval> | null = null;
-    const stop = () => {
-      if (hold) clearTimeout(hold);
-      if (repeat) clearInterval(repeat);
-      hold = null;
-      repeat = null;
-    };
     return {
       onPointerDown: (e: React.PointerEvent) => {
         e.preventDefault();
+        stopHold();
         step(dir);
-        hold = setTimeout(() => {
-          repeat = setInterval(() => step(dir), 90);
+        holdTimerRef.current = setTimeout(() => {
+          repeatTimerRef.current = setInterval(() => step(dir), 90);
         }, 350);
       },
-      onPointerUp: stop,
-      onPointerLeave: stop,
-      onPointerCancel: stop
+      onPointerUp: stopHold,
+      onPointerLeave: stopHold,
+      onPointerCancel: stopHold
     };
   }
 

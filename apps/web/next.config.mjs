@@ -4,7 +4,8 @@ const nextConfig = {
   transpilePackages: [
     "@cornerman/ui",
     "@cornerman/api-client",
-    "@cornerman/shared-types"
+    "@cornerman/shared-types",
+    "antd-mobile"
   ]
 };
 

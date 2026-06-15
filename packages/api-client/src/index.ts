@@ -31,6 +31,12 @@ export interface ApiClientOptions {
   baseUrl: string;
   /** 返回当前 access token，请求时自动加到 Authorization 头 */
   getAccessToken?: () => string | undefined;
+  /** 返回当前 refresh token，access token 失效（401）时用于静默续期 */
+  getRefreshToken?: () => string | undefined;
+  /** 静默续期成功后回调，用于持久化新的 token */
+  onTokensRefreshed?: (res: AuthResponse) => void;
+  /** 续期失败（refresh token 也失效）时回调，通常用于登出并跳转登录 */
+  onAuthFailed?: () => void;
 }
 
 export class ApiError extends Error {
@@ -46,24 +52,71 @@ export class ApiError extends Error {
 export function createApiClient(options: ApiClientOptions) {
   const baseUrl = options.baseUrl.replace(/\/$/, "");
 
+  // 同一时刻只允许一个续期请求，避免多请求并发 401 时重复刷新（token 风暴）
+  let refreshInFlight: Promise<string | null> | null = null;
+
+  async function doRefresh(): Promise<string | null> {
+    const refreshToken = options.getRefreshToken?.();
+    if (!refreshToken) return null;
+    try {
+      const res = await fetch(`${baseUrl}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken })
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as AuthResponse;
+      options.onTokensRefreshed?.(data);
+      return data.tokens.accessToken;
+    } catch {
+      return null;
+    }
+  }
+
+  function refreshOnce(): Promise<string | null> {
+    if (!refreshInFlight) {
+      refreshInFlight = doRefresh().finally(() => {
+        refreshInFlight = null;
+      });
+    }
+    return refreshInFlight;
+  }
+
   async function request<T>(
     path: string,
     init: { method?: string; body?: unknown; auth?: boolean } = {}
   ): Promise<T> {
-    const headers: Record<string, string> = {};
-    if (init.body !== undefined) {
-      headers["Content-Type"] = "application/json";
-    }
-    if (init.auth !== false) {
-      const token = options.getAccessToken?.();
-      if (token) headers.Authorization = `Bearer ${token}`;
-    }
+    const send = (): Promise<Response> => {
+      const headers: Record<string, string> = {};
+      if (init.body !== undefined) {
+        headers["Content-Type"] = "application/json";
+      }
+      if (init.auth !== false) {
+        const token = options.getAccessToken?.();
+        if (token) headers.Authorization = `Bearer ${token}`;
+      }
+      return fetch(`${baseUrl}${path}`, {
+        method: init.method ?? "GET",
+        headers,
+        body: init.body !== undefined ? JSON.stringify(init.body) : undefined
+      });
+    };
 
-    const res = await fetch(`${baseUrl}${path}`, {
-      method: init.method ?? "GET",
-      headers,
-      body: init.body !== undefined ? JSON.stringify(init.body) : undefined
-    });
+    let res = await send();
+
+    // access token 过期：用 refresh token 静默续期后重试一次
+    if (
+      res.status === 401 &&
+      init.auth !== false &&
+      options.getRefreshToken?.()
+    ) {
+      const newToken = await refreshOnce();
+      if (newToken) {
+        res = await send();
+      } else {
+        options.onAuthFailed?.();
+      }
+    }
 
     if (!res.ok) {
       let message = `请求失败 (${res.status})`;

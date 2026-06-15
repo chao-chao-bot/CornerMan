@@ -2,6 +2,7 @@ import {
   IsEnum,
   IsISO8601,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   Max,
@@ -52,4 +53,12 @@ export class CreateTrainingSessionDto {
   @IsOptional()
   @IsString()
   templateId?: string;
+
+  @IsOptional()
+  @IsObject()
+  content?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsObject()
+  outcome?: Record<string, unknown>;
 }

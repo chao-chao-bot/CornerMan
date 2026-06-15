@@ -191,6 +191,10 @@ export interface CreateTrainingSessionInput {
   userNote?: string;
   /** 基于该模板创建，写入模板快照与空内容骨架 */
   templateId?: ID;
+  /** 创建时一并写入的 block 内容（草稿确认保存时使用，覆盖空骨架） */
+  content?: SessionContent;
+  /** 创建时一并写入的实战成败 */
+  outcome?: SessionOutcome;
 }
 
 /** 保存复盘内容入参 */
